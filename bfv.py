@@ -357,64 +357,61 @@ def parse_result(
 class BFV(Consumer):
     """A Python Client for the BFV API."""
 
-    @get("/api/service/widget/v1/team/{teamPermanentId}/matches")
-    def getTeamMatches(self, teamPermanentId: str) -> Response[Matches | None]:
+    @get("/api/service/widget/v1/team/{team_id}/matches")
+    def get_team_matches(self, team_id: str) -> Response[Matches | None]:
         """Retrieves the team's matches."""
-        pass
 
-    @get("/api/service/widget/v1/team/{teamPermanentId}/squad")
-    def getTeamSquad(self, teamPermanentId: str) -> Response[Squad]:
+    @get("/api/service/widget/v1/team/{team_id}/squad")
+    def get_team_squad(self, team_id: str) -> Response[Squad]:
         """Retrieves the team's squad."""
-        pass
 
-    @get("/rest/competitioncontroller/competition/id/{compoundId}")
-    def getCompetition(self, compoundId: str) -> Response[Competition]:
-        """Retrieves the competition."""
-        pass
+    @get("/rest/competitioncontroller/competition/id/{competition_id}")
+    def get_competition(self, competition_id: str) -> Response[Competition]:
+        """Retrieves the competition for the current match day."""
 
-    @get("/rest/competitioncontroller/competition/id/{compoundId}/matchday/{matchDay}")
-    def getCompetitionForMatchDay(
-        self, compoundId: str, matchDay: int
+    @get(
+        "/rest/competitioncontroller/competition/id/{competition_id}/matchday/{match_day}"
+    )
+    def get_competition_for_match_day(
+        self, competition_id: str, match_day: int
     ) -> Response[Competition]:
-        """Retrieves the competition."""
-        pass
+        """Retrieves the competition for the given match day."""
 
-    @get("/api/service/widget/v1/competition/{compoundId}/topscorer")
-    def getCompetitionTopScorer(self, compoundId: str) -> Response[TopScorer | None]:
+    @get("/api/service/widget/v1/competition/{competition_id}/topscorer")
+    def get_competition_top_scorer(
+        self, competition_id: str
+    ) -> Response[TopScorer | None]:
         """Retrieves the competition's top scorer."""
 
-    @get("/rest/competitioncontroller/competition/table/{tableType}/id/{compoundId}")
-    def getCompetitionStandings(
+    @get(
+        "/rest/competitioncontroller/competition/table/{standings_type}/id/{competition_id}"
+    )
+    def get_competition_standings(
         self,
-        compoundId: str,
-        tableType: Literal[
+        competition_id: str,
+        standings_type: Literal[
             "", "home", "away", "firsthalfseason", "secondhalfseason"
         ] = "",
     ) -> Response[Standings]:
         """Retrieves the competition's standings."""
-        pass
 
-    @get("/rest/clubcontroller/fixtures/id/{clubId}/matchtype/{matchType}")
-    def getClubMatches(
-        self, clubId: str, matchType: Literal["all", "home", "away"] = "all"
+    @get("/rest/clubcontroller/fixtures/id/{club_id}/matchtype/{match_type}")
+    def get_club_matches(
+        self, club_id: str, match_type: Literal["all", "home", "away"] = "all"
     ) -> Response[ShortMatches]:
         """Retrieves the club's matches."""
-        pass
 
-    @get("/api/service/widget/v1/club/{clubId}/info")
-    def getClubInfo(self, clubId: str) -> Response[ClubInfo]:
+    @get("/api/service/widget/v1/club/{club_id}/info")
+    def get_club_info(self, club_id: str) -> Response[ClubInfo]:
         """Retrieves the club's information."""
-        pass
 
-    @get("/api/service/widget/v1/club/info?teamPermanentId={teamPermanentId}")
-    def getClubInfoFromTeam(self, teamPermanentId: str) -> Response[ClubInfo]:
-        """Retrieves the team's information."""
-        pass
+    @get("/api/service/widget/v1/club/info?teamPermanentId={team_id}")
+    def get_club_info_from_team(self, team_id: str) -> Response[ClubInfo]:
+        """Retrieves the club's information from a team ID."""
 
-    @get("/rest/matchcontroller/matchreport/id/{matchId}")
-    def getMatchReport(self, matchId: str) -> Response[MatchReport]:
+    @get("/rest/matchcontroller/matchreport/id/{match_id}")
+    def get_match_report(self, match_id: str) -> Response[MatchReport]:
         """Retrieves the match report."""
-        pass
 
 
 bfv = BFV(base_url="https://widget-prod.bfv.de")
@@ -423,19 +420,15 @@ bfv = BFV(base_url="https://widget-prod.bfv.de")
 def test_all() -> None:
     fcbayern_u13 = "01BKG17M3S000000VV0AG811VTNTKEKF"
 
-    result = bfv.getClubInfoFromTeam(fcbayern_u13).data
+    result = bfv.get_club_info_from_team(fcbayern_u13).data
     club_id = result.club.id
 
-    matches = bfv.getClubMatches(club_id).data.matches
+    matches = bfv.get_club_matches(club_id).data.matches
     unique_competitions = set(match.compoundId for match in matches)
     for comp in unique_competitions:
-        comp_data = bfv.getCompetition(comp).data
-        standings = bfv.getCompetitionStandings(comp).data
-        top_scorer = bfv.getCompetitionTopScorer(comp).data
+        comp_data = bfv.get_competition(comp).data
+        standings = bfv.get_competition_standings(comp).data
+        top_scorer = bfv.get_competition_top_scorer(comp).data
     for match in matches:
-        report = bfv.getMatchReport(match.matchId)
+        report = bfv.get_match_report(match.matchId)
     print(comp_data, standings, top_scorer, report)
-
-
-# test_all()
-# %%

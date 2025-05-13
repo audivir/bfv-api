@@ -5,15 +5,15 @@ from table import Match, show_table
 tsv_kornburg = "016PE7FISS000000VV0AG811VTE5EA5R"
 
 # get the competition id
-comp = bfv.getTeamMatches(tsv_kornburg).data.team.compoundId
+comp = bfv.get_team_matches(tsv_kornburg).data.team.compoundId
 
 # get the current match day
-current_match_day = bfv.getCompetition(comp).data.actualMatchDay
+current_match_day = bfv.get_competition(comp).data.actualMatchDay
 
 # get all matches played so far
 all_matches: list[BFVMatch] = []
 for match_day in range(1, int(current_match_day) + 1):
-    matches = bfv.getCompetitionForMatchDay(comp, match_day).data.matches
+    matches = bfv.get_competitionForMatchDay(comp, match_day).data.matches
     all_matches.extend(matches)
 
 # take only the matches that have a valid result
