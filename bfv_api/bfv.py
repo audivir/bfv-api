@@ -1,9 +1,23 @@
-# %%
-from uplink import Consumer, get
-from pydantic import BaseModel
-from typing import Literal
-from enum import IntEnum
+"""Retrieve data from the BFV API."""
+
+# ruff: noqa: N815
+from __future__ import annotations
+
 import re
+from enum import IntEnum
+from typing import TYPE_CHECKING, Generic, Literal, TypeVar
+
+from doctyper._typing import get_type_hints
+from pydantic import BaseModel
+from typing_extensions import ParamSpec
+from uplink import Consumer, get
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+DataT = TypeVar("DataT")
+P = ParamSpec("P")
+R = TypeVar("R")
 
 TeamT = Literal[
     "Frauen",
@@ -21,6 +35,18 @@ TeamT = Literal[
     "E-Junioren",
     "F-Junioren",
 ]
+
+
+def typed_get(endpoint: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    """Create a typed get method."""
+
+    def _typed_get(func: Callable[P, R]) -> Callable[P, R]:
+        """Create a typed get method."""
+        # parse string type annotations to python types
+        func.__annotations__ = get_type_hints(func)
+        return get(endpoint)(func)  # type: ignore[no-any-return]
+
+    return _typed_get
 
 
 class EventType(IntEnum):
@@ -199,6 +225,8 @@ class MatchReportInfo(BaseModel):
 
 
 class MatchReport(BaseModel):
+    """A match report from the BFV API."""
+
     staffelzusatz: str
     matchId: str
     result: str
@@ -311,7 +339,7 @@ class Standings(BaseModel):
     tabelle: list[StandingsTeam]
 
 
-class Response[DataT](BaseModel):
+class Response(BaseModel, Generic[DataT]):
     """A response from the BFV API."""
 
     state: int
@@ -319,17 +347,14 @@ class Response[DataT](BaseModel):
     data: DataT
 
 
-def parse_result(
-    match: Match | MatchReport, _parse: bool = True
-) -> tuple[int, int] | None:
+def parse_result(match: Match | MatchReport, _parse: bool = True) -> tuple[int, int] | None:
     """Parse the result string into a tuple of integers."""
     result = match.result
     home = match.homeTeamName.strip()
+    if not match.guestTeamName or not result or result == "Abse.":
+        # game not yet played or cancelled or no opponent
+        return None
     guest = match.guestTeamName.strip()
-    if not result:
-        return None
-    if result == "Abse.":
-        return None
     if result == "n.an.":
         if home[0] == "(" and home[-1] == ")":
             return 0, 2
@@ -349,86 +374,80 @@ def parse_result(
         home_score, guest_score = result.split(":")
         return int(home_score), int(guest_score)
     except ValueError as e:
-        raise ValueError(
-            f"Invalid result string for {home} vs {guest}: {result}"
-        ) from e
+        raise ValueError(f"Invalid result string for {home} vs {guest}: {result}") from e
 
 
-class BFV(Consumer):
+class BFVConsumer(Consumer):  # type: ignore[misc]
     """A Python Client for the BFV API."""
 
-    @get("/api/service/widget/v1/team/{team_id}/matches")
-    def get_team_matches(self, team_id: str) -> Response[Matches | None]:
+    @typed_get("/api/service/widget/v1/team/{team_id}/matches")
+    def get_team_matches(self, team_id: str) -> Response[Matches]:  # type: ignore[empty-body]
         """Retrieves the team's matches."""
 
-    @get("/api/service/widget/v1/team/{team_id}/squad")
-    def get_team_squad(self, team_id: str) -> Response[Squad]:
+    @typed_get("/api/service/widget/v1/team/{team_id}/squad")
+    def get_team_squad(self, team_id: str) -> Response[Squad]:  # type: ignore[empty-body]
         """Retrieves the team's squad."""
 
-    @get("/rest/competitioncontroller/competition/id/{competition_id}")
-    def get_competition(self, competition_id: str) -> Response[Competition]:
+    @typed_get("/rest/competitioncontroller/competition/id/{competition_id}")
+    def get_competition(self, competition_id: str) -> Response[Competition]:  # type: ignore[empty-body]
         """Retrieves the competition for the current match day."""
 
-    @get(
-        "/rest/competitioncontroller/competition/id/{competition_id}/matchday/{match_day}"
-    )
-    def get_competition_for_match_day(
+    @typed_get("/rest/competitioncontroller/competition/id/{competition_id}/matchday/{match_day}")
+    def get_competition_for_match_day(  # type: ignore[empty-body]
         self, competition_id: str, match_day: int
     ) -> Response[Competition]:
         """Retrieves the competition for the given match day."""
 
-    @get("/api/service/widget/v1/competition/{competition_id}/topscorer")
-    def get_competition_top_scorer(
-        self, competition_id: str
-    ) -> Response[TopScorer | None]:
+    @typed_get("/api/service/widget/v1/competition/{competition_id}/topscorer")
+    def get_competition_top_scorer(self, competition_id: str) -> Response[TopScorer | None]:  # type: ignore[empty-body]
         """Retrieves the competition's top scorer."""
 
-    @get(
-        "/rest/competitioncontroller/competition/table/{standings_type}/id/{competition_id}"
-    )
-    def get_competition_standings(
+    @typed_get("/rest/competitioncontroller/competition/table/{standings_type}/id/{competition_id}")
+    def get_competition_standings(  # type: ignore[empty-body]
         self,
         competition_id: str,
-        standings_type: Literal[
-            "", "home", "away", "firsthalfseason", "secondhalfseason"
-        ] = "",
+        standings_type: Literal["", "home", "away", "firsthalfseason", "secondhalfseason"] = "",
     ) -> Response[Standings]:
         """Retrieves the competition's standings."""
 
-    @get("/rest/clubcontroller/fixtures/id/{club_id}/matchtype/{match_type}")
-    def get_club_matches(
+    @typed_get("/rest/clubcontroller/fixtures/id/{club_id}/matchtype/{match_type}")
+    def get_club_matches(  # type: ignore[empty-body]
         self, club_id: str, match_type: Literal["all", "home", "away"] = "all"
     ) -> Response[ShortMatches]:
         """Retrieves the club's matches."""
 
-    @get("/api/service/widget/v1/club/{club_id}/info")
-    def get_club_info(self, club_id: str) -> Response[ClubInfo]:
+    @typed_get("/api/service/widget/v1/club/{club_id}/info")
+    def get_club_info(self, club_id: str) -> Response[ClubInfo]:  # type: ignore[empty-body]
         """Retrieves the club's information."""
 
-    @get("/api/service/widget/v1/club/info?teamPermanentId={team_id}")
-    def get_club_info_from_team(self, team_id: str) -> Response[ClubInfo]:
+    @typed_get("/api/service/widget/v1/club/info?teamPermanentId={team_id}")
+    def get_club_info_from_team(self, team_id: str) -> Response[ClubInfo]:  # type: ignore[empty-body]
         """Retrieves the club's information from a team ID."""
 
-    @get("/rest/matchcontroller/matchreport/id/{match_id}")
-    def get_match_report(self, match_id: str) -> Response[MatchReport]:
+    @typed_get("/rest/matchcontroller/matchreport/id/{match_id}")
+    def get_match_report(self, match_id: str) -> Response[MatchReport]:  # type: ignore[empty-body]
         """Retrieves the match report."""
 
 
-bfv = BFV(base_url="https://widget-prod.bfv.de")
+BFV = BFVConsumer(base_url="https://widget-prod.bfv.de")
 
 
 def test_all() -> None:
+    """Test all endpoints."""
     fcbayern_u13 = "01BKG17M3S000000VV0AG811VTNTKEKF"
 
-    result = bfv.get_club_info_from_team(fcbayern_u13).data
+    result = BFV.get_club_info_from_team(fcbayern_u13).data
     club_id = result.club.id
 
-    matches = bfv.get_club_matches(club_id).data.matches
-    unique_competitions = set(match.compoundId for match in matches)
-    for comp in unique_competitions:
-        comp_data = bfv.get_competition(comp).data
-        standings = bfv.get_competition_standings(comp).data
-        top_scorer = bfv.get_competition_top_scorer(comp).data
-    for match in matches:
-        report = bfv.get_match_report(match.matchId)
-    print(comp_data, standings, top_scorer, report)
+    matches = BFV.get_club_matches(club_id).data.matches
+    unique_competitions = {match.compoundId for match in matches}
+    for ix, comp in enumerate(unique_competitions):
+        comp_data = BFV.get_competition(comp).data
+        standings = BFV.get_competition_standings(comp).data
+        top_scorer = BFV.get_competition_top_scorer(comp).data
+        if ix == 0:
+            print(comp_data, standings, top_scorer)  # noqa: T201
+    for ix, match in enumerate(matches):
+        report = BFV.get_match_report(match.matchId)
+        if ix == 0:
+            print(report)  # noqa: T201
