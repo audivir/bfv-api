@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 from enum import IntEnum
+from pathlib import Path
 from typing import TYPE_CHECKING, Generic, Literal, TypeVar
 
 from doctyper._typing import get_type_hints
@@ -162,6 +163,11 @@ class PlayerInfo(BaseModel):
     photoUrlThumb: str
     photoUrlStamp: str
     photoUrlImage: str
+
+    @property
+    def id(self) -> str:
+        """Player ID."""
+        return Path(self.photoUrlImage).stem
 
 
 class MatchPlayer(BaseModel):
