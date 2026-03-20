@@ -1,29 +1,45 @@
 """Retrieve data from the BFV API."""
 
-# ruff: noqa: N815
+# ruff: noqa: N806, N815
 from __future__ import annotations
 
+import logging
 import re
 from enum import IntEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Generic, Literal, NamedTuple, Protocol, TypeVar
 
 from doctyper._typing import get_type_hints
-from pydantic import BaseModel
-from typing_extensions import ParamSpec
+from ordered_enum import OrderedEnum
+from pydantic import BaseModel, model_validator
+from typing_extensions import ParamSpec, Self
 from uplink import Consumer, get
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+logger = logging.getLogger(__name__)
+
 DataT = TypeVar("DataT")
 P = ParamSpec("P")
 R = TypeVar("R")
 
+CompetitionT = Literal[
+    "Meisterschaften",
+    "Freundschaftsspiele",
+    "Pokale",
+    "Turniere",
+    "Hallenturniere",
+    "Hallenturniere (Futsal)",
+    "Auswahlspiele",
+]
 TeamT = Literal[
     "Frauen",
     "B-Juniorinnen",
     "C-Juniorinnen",
+    "D-Juniorinnen",
+    "E-Juniorinnen",
+    "Herren Ü60",
     "Herren Ü50",
     "Herren Ü40",
     "Herren Ü45",
@@ -35,6 +51,9 @@ TeamT = Literal[
     "D-Junioren",
     "E-Junioren",
     "F-Junioren",
+    "U14 Junioren",
+    "U13 Junioren",
+    "Freizeitsport Herren",
 ]
 
 
@@ -48,6 +67,34 @@ def typed_get(endpoint: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
         return get(endpoint)(func)  # type: ignore[no-any-return]
 
     return _typed_get
+
+
+class CompetitionLevel(OrderedEnum):
+    """All levels in Bavarian football."""
+
+    kreisfreundschaftsspiele = "Kreisfreundschaftsspiele"
+    bezirksfreundschaftsspiele = "Bezirksfreundschaftsspiele"
+    landesfreundschaftsspiele = "Landesfreundschaftsspiele"
+
+    kreisturnier = "Kreisturnier"
+    kreispokal = "Kreispokal"
+    verbandspokal = "Verbands-Pokal"
+
+    kinderfussball = "Kinderfußball"  # JUGEND
+    gruppe = "Gruppe"  # JUGEND
+    foerderliga = "Förderliga"  # JUGEND
+    c_klasse = "C Klasse"
+    b_klasse = "B Klasse"
+    a_klasse = "A Klasse"
+    kreisklasse = "Kreisklasse"
+    kreisliga = "Kreisliga"
+    bezirksliga = "Bezirksliga"
+    bezirksoberliga = "Bezirksoberliga"  # JUGEND
+    landesliga = "Landesliga"
+    bayernliga = "Bayernliga"
+    regionalliga = "Regionalliga Bayern"
+    second_bundesliga = "2.Bundesliga"
+    bundesliga = "Bundesliga"
 
 
 class EventType(IntEnum):
@@ -64,6 +111,16 @@ class EventType(IntEnum):
     TIME_PENALTY = 13
 
 
+class CompetitionType(IntEnum):
+    """Enum numbers of different competition types."""
+
+    Meisterschaften = 1
+    Hallenturniere = 2
+    Freundschaftsspiele = 70
+    Pokale = 308
+    Turniere = 300
+
+
 class Team(BaseModel):
     """A team from the BFV API."""
 
@@ -78,13 +135,22 @@ class Team(BaseModel):
     competitionBreadcrumb: str
 
 
+class TeamInfo(NamedTuple):
+    """Information about a single team."""
+
+    teamName: str
+    teamPermanentId: str | None
+    clubId: str | None
+    logoPrivate: bool
+
+
 class Match(BaseModel):
     """A match from the BFV API."""
 
     matchId: str
     compoundId: str
     competitionName: str
-    competitionType: str
+    competitionType: CompetitionT
     teamType: TeamT
     kickoffDate: str
     kickoffTime: str | None
@@ -105,6 +171,31 @@ class Match(BaseModel):
     def parsed_result(self) -> tuple[int, int] | None:
         """Result string as a tuple of integers."""
         return parse_result(self)
+
+    def select_team(self, pattern: str) -> tuple[Literal[0, 1], TeamInfo, TeamInfo] | None:
+        """Select the info of a team based a regex pattern matching the team name.
+
+        Returns:
+            A tuple with the index for the parsed result,
+            the selected team's info and the other team's info.
+        """
+        home = TeamInfo(
+            self.homeTeamName, self.homeTeamPermanentId, self.homeClubId, self.homeLogoPrivate
+        )
+        guest = TeamInfo(
+            self.guestTeamName, self.guestTeamPermanentId, self.guestClubId, self.guestLogoPrivate
+        )
+        teams = f"{self.homeTeamName} - {self.guestTeamName}"
+        matches_home = re.search(pattern, self.homeTeamName)
+        matches_guest = re.search(pattern, self.guestTeamName)
+        if matches_home and matches_guest:
+            raise ValueError(f"Pattern ({pattern}) matches both teams: {teams}")
+        if matches_home:
+            return 0, home, guest
+        if matches_guest:
+            return 1, guest, home
+        logger.warning("Pattern (%s) matches no team: %s", pattern, teams)
+        return None
 
 
 class ShortMatches(BaseModel):
@@ -292,6 +383,36 @@ class MatchDay(BaseModel):
     bezeichnung: str
 
 
+class HasStaffelzusatz(Protocol):
+    """Object with a staffelzusatz attribute."""
+
+    staffelzusatz: str
+
+
+class StaffelInfo(BaseModel):
+    """Information about the staffel."""
+
+    competitionType: CompetitionT
+    teamType: TeamT
+    competitionLevel: CompetitionLevel
+    competitionArea: str
+
+    @classmethod
+    def from_model(cls, model: HasStaffelzusatz) -> Self:
+        """Create the staffel information from staffelzusatz attribute."""
+        competitionType, teamType, competitionLevel, competitionArea = model.staffelzusatz.split(
+            " | "
+        )
+        return cls.model_validate(
+            {
+                "competitionType": competitionType,
+                "teamType": teamType,
+                "competitionLevel": competitionLevel,
+                "competitionArea": competitionArea,
+            }
+        )
+
+
 class Competition(BaseModel):
     """A competition."""
 
@@ -301,8 +422,8 @@ class Competition(BaseModel):
     staffelname: str
     staffelzusatz: str
     staffelnr: str
-    staffelTypId: Literal[1, 2, 70, 300]
-    staffelTypName: Literal["Meisterschaften", "Freundschaftsspiele", "Turniere", "Hallenturniere"]
+    staffelTypId: CompetitionType
+    staffelTypName: CompetitionT
     adCode: str
     anzAufsteiger: int
     anzAufsteigerq: int
@@ -314,6 +435,13 @@ class Competition(BaseModel):
     spieltage: list[MatchDay]
     selSpieltag: str
     actualMatchDay: str
+
+    @model_validator(mode="after")
+    def validate_competition(self) -> Self:
+        """Validate our enum is correct."""
+        if self.staffelTypName != self.staffelTypId.name:
+            raise ValueError("Competition mismatch")
+        return self
 
 
 class TopScorerPlayer(BaseModel):
@@ -421,7 +549,7 @@ class BFVConsumer(Consumer):  # type: ignore[misc]
 
     @typed_get("/rest/clubcontroller/fixtures/id/{club_id}/matchtype/{match_type}")
     def get_club_matches(  # type: ignore[empty-body]
-        self, club_id: str, match_type: Literal["all", "home", "away"] = "all"
+        self, club_id: str, match_type: Literal["all", "home", "away", "team"] = "all"
     ) -> Response[ShortMatches]:
         """Retrieves the club's matches."""
 

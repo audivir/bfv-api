@@ -19,6 +19,7 @@ Repository = "https://github.com/audivir/bfv-api"
 
 [project.optional-dependencies]
 dev = ["ruff", "mypy", "pytest", "coverage[toml]", "vulture"]
+eligibility = ["rich"]
 
 [tool.setuptools]
 dynamic = { version = { attr = "bfv_api.__version__" } }
