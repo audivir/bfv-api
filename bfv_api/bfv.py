@@ -301,8 +301,8 @@ class Competition(BaseModel):
     staffelname: str
     staffelzusatz: str
     staffelnr: str
-    staffelTypId: Literal[1, 70, 300]
-    staffelTypName: Literal["Meisterschaften", "Freundschaftsspiele", "Turniere"]
+    staffelTypId: Literal[1, 2, 70, 300]
+    staffelTypName: Literal["Meisterschaften", "Freundschaftsspiele", "Turniere", "Hallenturniere"]
     adCode: str
     anzAufsteiger: int
     anzAufsteigerq: int
@@ -367,6 +367,9 @@ def parse_result(match: Match | MatchReport, _parse: bool = True) -> tuple[int, 
         if guest[0] == "(" and guest[-1] == ")":
             return 2, 0
         raise ValueError(f"Invalid n.an. result string for {home} vs {guest}: {result}")
+    if result.endswith("nE"):
+        match.result = result.removesuffix("nE")
+        return parse_result(match)
     if "w" in result.casefold() or "u" in result.casefold():
         if not _parse:
             raise ValueError(f"Invalid result string for {home} vs {guest}: {result}")
