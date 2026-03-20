@@ -183,13 +183,12 @@ def check_for_ineligible_players(*team_ids: str) -> None:  # noqa: C901, PLR0912
         }
 
         # 1. Evaluate restrictions against higher teams
-        first_half_violations = {}
-        second_half_players = {}
+        first_half_violations: dict[tuple[str, str], tuple[PlayerStatus, int]] = {}
+        second_half_players: dict[tuple[str, str], tuple[PlayerStatus, int]] = {}
 
         for player_key in used_players:
-            is_strictly_banned = False
-            is_sec_half_restricted = False
-            best_ban_status, best_sec_status = None, None
+            best_ban_status: PlayerStatus | None = None
+            best_sec_status: PlayerStatus | None = None
             days_banned, days_sec = 0, 0
 
             for higher_team, status in player_status.get(player_key, {}).items():
@@ -205,16 +204,14 @@ def check_for_ineligible_players(*team_ids: str) -> None:  # noqa: C901, PLR0912
                 if status.first_half:
                     sat_out = status.sat_out_games.get(current_team, 0)
                     if days_elapsed <= MIN_DAYS and sat_out < MIN_GAMES:
-                        is_strictly_banned = True
                         best_ban_status, days_banned = status, days_elapsed
                 elif days_elapsed <= MIN_DAYS:
-                    is_sec_half_restricted = True
                     best_sec_status, days_sec = status, days_elapsed
 
                 # Strict bans supersede 2nd half quotas
-                if is_strictly_banned:
+                if best_ban_status:
                     first_half_violations[player_key] = (best_ban_status, days_banned)
-                elif is_sec_half_restricted:
+                elif best_sec_status:
                     second_half_players[player_key] = (best_sec_status, days_sec)
 
         over_limit_count = max(0, len(second_half_players) - 5)
@@ -260,7 +257,7 @@ def check_for_ineligible_players(*team_ids: str) -> None:  # noqa: C901, PLR0912
         # 3. Add/Update deployments
         for player_key in used_players:
             substitute, substituted = match.players[player_key]
-            is_first_half = not substitute or (substituted and substituted <= HALFTIME_MINUTE)
+            is_first_half = bool(not substitute or (substituted and substituted <= HALFTIME_MINUTE))
             player_status[player_key][current_team] = PlayerStatus(
                 higher_team=current_team, match_date=match_date, first_half=is_first_half
             )
