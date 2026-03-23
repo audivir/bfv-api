@@ -5,7 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "bfv-api"
 dynamic = ["version"]
-dependencies = ["doctyper", "pydantic", "uplink", "ordered_enum"]
+dependencies = [
+    "doctyper",
+    "ordered_enum",
+    "pydantic",
+    "rich",
+    "uplink",
+    "uplink-msgspec",
+    "yaspin"
+]
 requires-python = ">=3.10"
 authors = [{ name = "Tim Hörmann", email = "pypi@audivir.de" }]
 description = "BFV API Python Client"
@@ -19,7 +27,6 @@ Repository = "https://github.com/audivir/bfv-api"
 
 [project.optional-dependencies]
 dev = ["ruff", "mypy", "pytest", "coverage[toml]", "vulture"]
-eligibility = ["rich"]
 
 [tool.setuptools]
 dynamic = { version = { attr = "bfv_api.__version__" } }

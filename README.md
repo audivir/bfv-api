@@ -2,9 +2,10 @@ BFV API Python Client
 ======================
 
 This small package was created to create standings for BFV-supervised leagues
-with a different tiebreaker order than the one used by the BFV.
+with an optionated tiebreaker order different from the one used by the BFV and
+and check if a club used ineligible players.
 
-Example is found in `standings_example.py`.
+Examples are found in `example_ineligibility.py` and `example_standings.py`.
 
 Credits
 -------

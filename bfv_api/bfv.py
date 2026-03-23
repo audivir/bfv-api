@@ -4,14 +4,15 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 from enum import IntEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Generic, Literal, NamedTuple, Protocol, TypeVar
 
+import msgspec
 from doctyper._typing import get_type_hints
 from ordered_enum import OrderedEnum
-from pydantic import BaseModel, model_validator
 from typing_extensions import ParamSpec, Self
 from uplink import Consumer, get
 
@@ -33,6 +34,7 @@ CompetitionT = Literal[
     "Hallenturniere (Futsal)",
     "Auswahlspiele",
 ]
+
 TeamT = Literal[
     "Frauen",
     "B-Juniorinnen",
@@ -55,6 +57,21 @@ TeamT = Literal[
     "U13 Junioren",
     "Freizeitsport Herren",
 ]
+
+
+def get_cache_dir() -> Path:
+    """Return cache dir, create if necessary."""
+    if xdg_cache_home := os.getenv("XDG_CACHE_HOME"):
+        cache_dir = Path(xdg_cache_home) / "bfv-api"
+    else:
+        cache_dir = Path.home() / ".cache" / "bfv-api"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir
+
+
+def setup_cache() -> Path:
+    """Setup the data cache."""
+    return get_cache_dir()
 
 
 def typed_get(endpoint: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
@@ -121,7 +138,7 @@ class CompetitionType(IntEnum):
     Turniere = 300
 
 
-class Team(BaseModel):
+class Team(msgspec.Struct):
     """A team from the BFV API."""
 
     permanentId: str
@@ -144,7 +161,7 @@ class TeamInfo(NamedTuple):
     logoPrivate: bool
 
 
-class Match(BaseModel):
+class Match(msgspec.Struct):
     """A match from the BFV API."""
 
     matchId: str
@@ -198,7 +215,7 @@ class Match(BaseModel):
         return None
 
 
-class ShortMatches(BaseModel):
+class ShortMatches(msgspec.Struct):
     """The data from the BFV API."""
 
     matches: list[Match]
@@ -212,7 +229,7 @@ class Matches(ShortMatches):
     actualTickeredMatchId: str | None
 
 
-class Club(BaseModel):
+class Club(msgspec.Struct):
     """A club from the BFV API."""
 
     id: str
@@ -221,34 +238,34 @@ class Club(BaseModel):
     logoPublic: bool
 
 
-class ClubInfo(BaseModel):
+class ClubInfo(msgspec.Struct):
     """The data from the BFV API."""
 
     club: Club
     number: str
 
 
-class Season(BaseModel):
+class Season(msgspec.Struct):
     """A season from the BFV API."""
 
     id: str
     name: str
 
 
-class ShortTeam(BaseModel):
+class ShortTeam(msgspec.Struct):
     """A team from the BFV API."""
 
     permanentId: str
     name: str | None
 
 
-class Player(BaseModel):
+class Player(msgspec.Struct):
     """A player from the BFV API."""
 
     test: str
 
 
-class PlayerInfo(BaseModel):
+class PlayerInfo(msgspec.Struct):
     """The data from the BFV API."""
 
     photoUrlThumb: str
@@ -261,7 +278,7 @@ class PlayerInfo(BaseModel):
         return Path(self.photoUrlImage).stem
 
 
-class MatchPlayer(BaseModel):
+class MatchPlayer(msgspec.Struct):
     """A player from the BFV API."""
 
     name: str
@@ -272,7 +289,7 @@ class MatchPlayer(BaseModel):
     playerInfo: PlayerInfo
 
 
-class Squad(BaseModel):
+class Squad(msgspec.Struct):
     """A squad from the BFV API."""
 
     public: bool
@@ -281,7 +298,7 @@ class Squad(BaseModel):
     players: list[Player]
 
 
-class Venue(BaseModel):
+class Venue(msgspec.Struct):
     """A venue from the BFV API."""
 
     type: Literal[0, 1, 3]
@@ -292,7 +309,7 @@ class Venue(BaseModel):
     city: str | None
 
 
-class MatchEvent(BaseModel):
+class MatchEvent(msgspec.Struct):
     """A match event from the BFV API."""
 
     minute: int
@@ -302,7 +319,7 @@ class MatchEvent(BaseModel):
     player: MatchPlayer | None
 
 
-class MatchTeamInfo(BaseModel):
+class MatchTeamInfo(msgspec.Struct):
     """A team from the BFV API."""
 
     trainer: str
@@ -310,7 +327,7 @@ class MatchTeamInfo(BaseModel):
     matchEvents: list[MatchEvent]
 
 
-class MatchReportInfo(BaseModel):
+class MatchReportInfo(msgspec.Struct):
     """The data from the BFV API."""
 
     home: MatchTeamInfo | None
@@ -321,7 +338,7 @@ class MatchReportInfo(BaseModel):
     spectators: int | None
 
 
-class MatchReport(BaseModel):
+class MatchReport(msgspec.Struct):
     """A match report from the BFV API."""
 
     staffelzusatz: str
@@ -355,7 +372,7 @@ class MatchReport(BaseModel):
         return parse_result(self)
 
 
-class StandingsTeam(BaseModel):
+class StandingsTeam(msgspec.Struct):
     """A team in the standings."""
 
     seasonId: str | None
@@ -376,7 +393,7 @@ class StandingsTeam(BaseModel):
     clubId: str | None
 
 
-class MatchDay(BaseModel):
+class MatchDay(msgspec.Struct):
     """A match day."""
 
     spieltag: str
@@ -389,7 +406,7 @@ class HasStaffelzusatz(Protocol):
     staffelzusatz: str
 
 
-class StaffelInfo(BaseModel):
+class StaffelInfo(msgspec.Struct):
     """Information about the staffel."""
 
     competitionType: CompetitionT
@@ -403,17 +420,18 @@ class StaffelInfo(BaseModel):
         competitionType, teamType, competitionLevel, competitionArea = model.staffelzusatz.split(
             " | "
         )
-        return cls.model_validate(
+        return msgspec.convert(
             {
                 "competitionType": competitionType,
                 "teamType": teamType,
                 "competitionLevel": competitionLevel,
                 "competitionArea": competitionArea,
-            }
+            },
+            cls,
         )
 
 
-class Competition(BaseModel):
+class Competition(msgspec.Struct):
     """A competition."""
 
     saison: str
@@ -436,15 +454,13 @@ class Competition(BaseModel):
     selSpieltag: str
     actualMatchDay: str
 
-    @model_validator(mode="after")
-    def validate_competition(self) -> Self:
+    def __post_init__(self) -> None:
         """Validate our enum is correct."""
         if self.staffelTypName != self.staffelTypId.name:
             raise ValueError("Competition mismatch")
-        return self
 
 
-class TopScorerPlayer(BaseModel):
+class TopScorerPlayer(msgspec.Struct):
     """A player in the top scorer."""
 
     playerImage: str
@@ -456,7 +472,7 @@ class TopScorerPlayer(BaseModel):
     goals: int
 
 
-class TopScorer(BaseModel):
+class TopScorer(msgspec.Struct):
     """A top scorer."""
 
     compoundId: str
@@ -465,7 +481,7 @@ class TopScorer(BaseModel):
     scorers: list[TopScorerPlayer]
 
 
-class Standings(BaseModel):
+class Standings(msgspec.Struct):
     """A standings."""
 
     compoundId: str
@@ -473,7 +489,7 @@ class Standings(BaseModel):
     tabelle: list[StandingsTeam]
 
 
-class Response(BaseModel, Generic[DataT]):
+class Response(msgspec.Struct, Generic[DataT]):
     """A response from the BFV API."""
 
     state: int
@@ -481,13 +497,16 @@ class Response(BaseModel, Generic[DataT]):
     data: DataT
 
 
-def parse_result(match: Match | MatchReport, _parse: bool = True) -> tuple[int, int] | None:
+def parse_result(match: Match | MatchReport, _parse: bool = True) -> tuple[int, int] | None:  # noqa: C901, PLR0911
     """Parse the result string into a tuple of integers."""
     result = match.result
     home = match.homeTeamName.strip()
     if not match.guestTeamName or not result or result == "Abse.":
         # game not yet played or cancelled or no opponent
         return None
+    if result == "Abbr.":
+        # game interrupted but no verdict yet
+        return -1, -1
     guest = match.guestTeamName.strip()
     if result == "n.an.":
         if home[0] == "(" and home[-1] == ")":

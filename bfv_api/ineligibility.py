@@ -8,18 +8,22 @@ import logging
 from collections import defaultdict
 from datetime import date, datetime
 from functools import total_ordering
-from typing import Annotated, NoReturn
+from typing import TYPE_CHECKING, Annotated, NamedTuple, NoReturn
 from zoneinfo import ZoneInfo
 
 import doctyper
 from ordered_enum import OrderedEnum
 from pydantic import BaseModel, Field
 from rich import print  # noqa: A004
+from yaspin import yaspin
 
-from bfv_api import BFV, BFVMatch
+from bfv_api import BFV
 from bfv_api.bfv import CompetitionLevel, EventType, MatchReport, MatchTeamInfo, StaffelInfo
 
-logger = logging.getLogger()
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+logger = logging.getLogger(__name__)
 
 MIN_TEAMS = 2
 MIN_GAMES = 2
@@ -130,18 +134,28 @@ def get_team_info(match_report: MatchReport, club_id: str) -> MatchTeamInfo:
     raise ValueError("Could not find team by id")
 
 
-def get_matches_with_players(team_id: str, team_ix: int) -> list[PlayersMatch]:
+def get_matches_with_players(
+    team_id: str, team_ix: int, sp_print: Callable[..., None] | None = None
+) -> list[PlayersMatch]:
     """Get a match object including information about the players used."""
+    if not sp_print:
+        sp_print = print
+
     matches_result = BFV.get_team_matches(team_id)
-    played_matches: list[BFVMatch] = [m for m in matches_result.data.matches if m.parsed_result]
+    played_matches = [m for m in matches_result.data.matches if m.parsed_result]
     club_id = BFV.get_club_info_from_team(team_id).data.club.id
 
     matches_with_players: list[PlayersMatch] = []
     for m in played_matches:
         if m.competitionType != "Meisterschaften":
             continue
+
         if not m.kickoffTime:
             raise ValueError("No kickoff time provided")
+        kickoff = datetime.strptime(
+            f"{m.kickoffDate} {m.kickoffTime}", "%d.%m.%Y %H:%M"
+        ).astimezone(ZoneInfo("Europe/Berlin"))
+
         try:
             report: MatchReport = BFV.get_match_report(m.matchId).data
             team_info = get_team_info(report, club_id)
@@ -156,11 +170,11 @@ def get_matches_with_players(team_id: str, team_ix: int) -> list[PlayersMatch]:
                 key = (event.player.name, event.player.playerInfo.id)
                 if value := players.get(key):
                     substitute, prev_minute = value
-                    players[key] = (substitute, min(prev_minute or 1000, event.minute))
+                    players[key] = (substitute, min(prev_minute or event.minute, event.minute))
                 else:
                     raise ValueError("Substituted player not in available player list")  # noqa: TRY301
         except ValueError:
-            print(f"Failed to parse match {m.guestTeamName} - {m.guestTeamName}")
+            sp_print(f"Failed to parse match {m.guestTeamName} - {m.guestTeamName}")
             continue
 
         matches_with_players.append(
@@ -168,20 +182,40 @@ def get_matches_with_players(team_id: str, team_ix: int) -> list[PlayersMatch]:
                 team=team_ix,
                 matchId=m.matchId,
                 competitionName=m.competitionName,
-                kickoff=datetime.strptime(
-                    f"{m.kickoffDate} {m.kickoffTime}", "%d.%m.%Y %H:%M"
-                ).astimezone(ZoneInfo("Europe/Berlin")),
+                kickoff=kickoff,
                 homeTeam=m.homeTeamName,
-                homeTeamId=m.homeTeamPermanentId or missing_value("homeTeamPermanentId"),
+                homeTeamId=m.homeTeamPermanentId,  # type: ignore[arg-type] # will be checked by pydantic
                 guestTeam=m.guestTeamName,
-                guestTeamId=m.guestTeamPermanentId or missing_value("guestTeamPermanentId"),
+                guestTeamId=m.guestTeamPermanentId,  # type: ignore[arg-type] # will be checked by pydantic
                 players=players,
             )
         )
+
     return matches_with_players
 
 
-def check_for_ineligible_players(first_team_id: str, *team_ids: str) -> None:  # noqa: C901, PLR0912, PLR0915
+class ViolatingMatch(NamedTuple):
+    """Track the violations during a team's match."""
+
+    team: int
+    date: date
+    home: str
+    guest: str
+    ka_player_first: bool
+    ka_player_sec: bool
+    first_half: dict[tuple[str, str], tuple[PlayerStatus, int]]
+    second_half: dict[tuple[str, str], tuple[PlayerStatus, int]]
+
+
+class Ineligibility(NamedTuple):
+    """Track the ineligibility during matches of a club."""
+
+    n_teams: int
+    allowed_violations: int
+    matches: list[ViolatingMatch]
+
+
+def check_for_ineligibility(first_team_id: str, *team_ids: str) -> Ineligibility:  # noqa: C901, PLR0912, PLR0915
     """Print which player were ineligible but used anyways.
 
     Args:
@@ -189,8 +223,7 @@ def check_for_ineligible_players(first_team_id: str, *team_ids: str) -> None:  #
         team_ids: BFV team IDs of a single club in descending order. The order will not be checked!
     """
     if not team_ids:
-        print("[green bold]Only a single team provided. No violations possible![/green bold]")
-        return
+        return Ineligibility(0, 0, [])
 
     compound_id = BFV.get_team_matches(first_team_id).data.team.compoundId
     competition = BFV.get_competition(compound_id).data
@@ -204,17 +237,19 @@ def check_for_ineligible_players(first_team_id: str, *team_ids: str) -> None:  #
 
     team_ids = (first_team_id, *team_ids)
 
-    all_matches: list[PlayersMatch] = []
-    for team_ix, team_id in enumerate(team_ids, start=1):
-        all_matches.extend(get_matches_with_players(team_id, team_ix))
+    with yaspin(text=f"Fetching matches for {len(team_ids)} teams...") as sp:
+        all_matches: list[PlayersMatch] = []
+        for team_ix, team_id in enumerate(team_ids, start=1):
+            all_matches.extend(get_matches_with_players(team_id, team_ix, sp.write))
+        sp.ok("✓")
 
     all_matches = sorted(all_matches, key=lambda m: m.kickoff)
-
-    allowed_violations = 1 if staffel_info.competitionLevel <= CompetitionLevel.kreisliga else 0  # type: ignore[operator]
 
     player_status: dict[tuple[str, str], dict[int, PlayerStatus]] = defaultdict(dict)
     last_team_match: dict[int, date] = {}
     first_post_winter_match: dict[int, date] = {}
+
+    violating_matches: list[ViolatingMatch] = []
 
     for match in all_matches:
         match_date = match.kickoff.date()
@@ -271,52 +306,18 @@ def check_for_ineligible_players(first_team_id: str, *team_ids: str) -> None:  #
                     ka_player_sec = True
                 second_half_players[player_key] = (best_sec_status, days_sec)
 
-        over_limit_count = max(0, len(second_half_players) - 5)
-        total_violations = len(first_half_violations) + over_limit_count
-
-        if total_violations > 0:
-            ka_affected = ka_player_first or (over_limit_count and ka_player_sec)
-            overhead = total_violations - allowed_violations
-            state_color, state_str = (
-                ILLEGAL
-                if overhead > 1
-                else PROB_LEGAL
-                if overhead == 1 and ka_affected
-                else ILLEGAL
-                if overhead == 1
-                else LEGAL
+        violating_matches.append(
+            ViolatingMatch(
+                current_team,
+                match_date,
+                match.homeTeam,
+                match.guestTeam,
+                ka_player_first,
+                ka_player_sec,
+                first_half_violations,
+                second_half_players,
             )
-            print(
-                f"[{state_color} bold]{state_str} Violations found for"
-                f" {match.homeTeam} - {match.guestTeam} ({match_date})[/]"
-            )
-            if ka_affected:
-                print(
-                    "  [yellow underline]k.A. in lineup might mess up with violation detection[/yellow underline]"  # noqa: E501
-                )
-            for violating_key, (st, days_elapsed) in first_half_violations.items():
-                name, _ = violating_key
-                output = (
-                    f"  [{state_color}][1st Half Ban]"
-                    f" {name} last used in T{st.higher_team}: {st.match_date}"
-                    f" (Sat out: {st.sat_out_games.get(current_team, 0)}, {days_elapsed} days ago)"
-                )
-                if st.is_pre_winter:
-                    output += " [Winter Break Rule Applied]"
-                print(output + "[/]")
-
-            if over_limit_count > 0:
-                print(
-                    f"[{state_color}]  [2nd Half Quota Exceeded] {len(second_half_players)}"
-                    " players used from 2nd half of higher teams (Max allowed: 5).[/]"
-                )
-                for p_key, (st, days_elapsed) in second_half_players.items():
-                    name, _ = p_key
-                    print(
-                        f"[{state_color}]    - {name} last used in T{st.higher_team}: {st.match_date} ({days_elapsed} days ago)[/]"  # noqa: E501
-                    )
-        else:
-            print(f"[green]No violations for {match.homeTeam} - {match.guestTeam}[/green]")
+        )
 
         # update sat_out_games for players who did NOT play in this match
         for player_key, team_statuses in player_status.items():
@@ -337,8 +338,22 @@ def check_for_ineligible_players(first_team_id: str, *team_ids: str) -> None:  #
 
         last_team_match[current_team] = match_date
 
+    allowed_violations = (
+        1 if staffel_info.competitionLevel <= CompetitionLevel.kreisliga else 0  # type: ignore[operator]
+    )
 
-def find_teams(club_id: str, raw_pattern: str | None) -> list[str] | None:
+    return Ineligibility(len(team_ids), allowed_violations, violating_matches)
+
+
+class FoundTeam(NamedTuple):
+    """Information about a club's team."""
+
+    level: CompetitionLevel
+    name: str
+    id: str
+
+
+def find_teams(club_id: str, raw_pattern: str | None) -> tuple[str, list[FoundTeam] | None]:
     """Find the Herren Meisterschaften teams of a club.
 
     Args:
@@ -348,8 +363,6 @@ def find_teams(club_id: str, raw_pattern: str | None) -> list[str] | None:
     club_info = BFV.get_club_info(club_id).data
     club_name = club_info.club.name
     pattern = raw_pattern or club_name
-
-    print(f"[bold blue]=== {club_name} ===[/bold blue]")
 
     matches = BFV.get_club_matches(club_id, match_type="team").data.matches
     teams: set[tuple[str, str, str]] = set()
@@ -365,25 +378,19 @@ def find_teams(club_id: str, raw_pattern: str | None) -> list[str] | None:
         teams.add((m.compoundId, this_team.teamName, this_team.teamPermanentId))
 
     if not teams:
-        print(
-            f"[bold red]No teams found, provide a{' different' if raw_pattern else ''} pattern[/bold red]"  # noqa: E501
-        )
-        return None
+        return club_name, None
 
-    full_teams: list[tuple[CompetitionLevel, str, str]] = []
+    found_teams: list[FoundTeam] = []
     for team in teams:
         staffel_info = StaffelInfo.from_model(BFV.get_competition(team[0]).data)
-        full_teams.append((staffel_info.competitionLevel, *team[1:]))
+        found_teams.append(FoundTeam(staffel_info.competitionLevel, *team[1:]))
 
-    full_teams = sorted(full_teams, key=lambda t: TeamSort(level=t[0], name=t[1]), reverse=True)
+    found_teams = sorted(found_teams, key=lambda t: TeamSort(level=t[0], name=t[1]), reverse=True)
 
-    for team_ix, full_team in enumerate(full_teams, start=1):
-        print(f"[yellow]Found {full_team[1]} (T{team_ix}) playing in {full_team[0].value}[/yellow]")
-
-    return [t[2] for t in full_teams]
+    return club_name, found_teams
 
 
-def main(club_id: str, pattern: Annotated[str | None, doctyper.Argument()] = None) -> None:
+def main(club_id: str, pattern: Annotated[str | None, doctyper.Argument()] = None) -> None:  # noqa: C901
     """Check if any ineligible players were used according to the terms of the BFV.
 
     Args:
@@ -391,11 +398,73 @@ def main(club_id: str, pattern: Annotated[str | None, doctyper.Argument()] = Non
         pattern: Regex pattern to match team names to (i.e., the club name)
     """
     logger.warning("End of season restrictions not implemented yet")
-    team_ids = find_teams(club_id, pattern)
-    if not team_ids:
+    club_name, found_teams = find_teams(club_id, pattern)
+
+    print(f"[bold blue]=== {club_name} ===[/bold blue]")
+
+    if not found_teams:
+        print(
+            f"[bold red]No teams found, provide a{' different' if pattern else ''} pattern[/bold red]"  # noqa: E501
+        )
         raise SystemExit(1)
 
-    check_for_ineligible_players(*team_ids)
+    for team_ix, t in enumerate(found_teams, start=1):
+        print(f"[yellow]Found {t.name} (T{team_ix}) playing in {t.level.value}[/yellow]")
+
+    ineligibility = check_for_ineligibility(*(t.id for t in found_teams))
+
+    if ineligibility.n_teams == 1:
+        print("[green bold]Only a single team provided. No violations possible![/green bold]")
+        return
+
+    for match in ineligibility.matches:
+        over_limit_count = max(0, len(match.second_half) - 5)
+        total_violations = len(match.first_half) + over_limit_count
+
+        if not total_violations:
+            print(f"[green]No violations for {match.home} - {match.guest}[/green]")
+            continue
+
+        ka_affected = match.ka_player_first or (over_limit_count and match.ka_player_sec)
+        overhead = total_violations - ineligibility.allowed_violations
+        state_color, state_str = (
+            ILLEGAL
+            if overhead > 1
+            else PROB_LEGAL
+            if overhead == 1 and ka_affected
+            else ILLEGAL
+            if overhead == 1
+            else LEGAL
+        )
+        print(
+            f"[{state_color} bold]{state_str} Violations found for"
+            f" {match.home} - {match.guest} ({match.date})[/]"
+        )
+        if ka_affected:
+            print(
+                "  [yellow underline]k.A. in lineup might mess up with violation detection[/yellow underline]"  # noqa: E501
+            )
+        for violating_key, (st, days_elapsed) in match.first_half.items():
+            name, _ = violating_key
+            output = (
+                f"  [{state_color}][1st Half Ban]"
+                f" {name} last used in T{st.higher_team}: {st.match_date}"
+                f" (Sat out: {st.sat_out_games.get(match.team, 0)}, {days_elapsed} days ago)"
+            )
+            if st.is_pre_winter:
+                output += " [Winter Break Rule Applied]"
+            print(output + "[/]")
+
+        if over_limit_count > 0:
+            print(
+                f"[{state_color}]  [2nd Half Quota Exceeded] {len(match.second_half)}"
+                " players used from 2nd half of higher teams (Max allowed: 5).[/]"
+            )
+            for p_key, (st, days_elapsed) in match.second_half.items():
+                name, _ = p_key
+                print(
+                    f"[{state_color}]    - {name} last used in T{st.higher_team}: {st.match_date} ({days_elapsed} days ago)[/]"  # noqa: E501
+                )
 
 
 if __name__ == "__main__":
