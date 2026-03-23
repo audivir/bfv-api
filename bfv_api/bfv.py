@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import re
 from enum import IntEnum
 from pathlib import Path
@@ -57,21 +56,6 @@ TeamT = Literal[
     "U13 Junioren",
     "Freizeitsport Herren",
 ]
-
-
-def get_cache_dir() -> Path:
-    """Return cache dir, create if necessary."""
-    if xdg_cache_home := os.getenv("XDG_CACHE_HOME"):
-        cache_dir = Path(xdg_cache_home) / "bfv-api"
-    else:
-        cache_dir = Path.home() / ".cache" / "bfv-api"
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    return cache_dir
-
-
-def setup_cache() -> Path:
-    """Setup the data cache."""
-    return get_cache_dir()
 
 
 def typed_get(endpoint: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
