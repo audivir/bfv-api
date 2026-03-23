@@ -6,14 +6,15 @@ from __future__ import annotations
 import contextlib
 import logging
 from collections import defaultdict
+from copy import deepcopy
 from datetime import date, datetime
 from functools import total_ordering
 from typing import TYPE_CHECKING, Annotated, NamedTuple, NoReturn
 from zoneinfo import ZoneInfo
 
 import doctyper
+import msgspec
 from ordered_enum import OrderedEnum
-from pydantic import BaseModel, Field
 from rich import print  # noqa: A004
 from yaspin import yaspin
 
@@ -51,7 +52,7 @@ class RomanNumeral(OrderedEnum):
 
 
 @total_ordering
-class TeamSort(BaseModel):
+class TeamSort(msgspec.Struct):
     """Sort teams on their level and if they are equal on the roman numeral."""
 
     level: CompetitionLevel
@@ -89,17 +90,17 @@ class TeamSort(BaseModel):
         return chunk_numeral > obj_chunk_numeral  # type: ignore[no-any-return] # team III is lower than team II
 
 
-class PlayerStatus(BaseModel):
+class PlayerStatus(msgspec.Struct):
     """Information when a player was last used."""
 
     higher_team: int
     match_date: date
     first_half: bool
-    sat_out_games: dict[int, int] = Field(default_factory=dict)
+    sat_out_games: dict[int, int] = {}
     is_pre_winter: bool = False
 
 
-class PlayersMatch(BaseModel):
+class PlayersMatch(msgspec.Struct):
     """Match object including information about the players used."""
 
     team: int
@@ -300,11 +301,11 @@ def check_for_ineligibility(first_team_id: str, *team_ids: str) -> Ineligibility
             if best_ban_status:
                 if player_key == KA_PLAYER:
                     ka_player_first = True
-                first_half_violations[player_key] = (best_ban_status, days_banned)
+                first_half_violations[player_key] = (deepcopy(best_ban_status), days_banned)
             elif best_sec_status:
                 if player_key == KA_PLAYER:
                     ka_player_sec = True
-                second_half_players[player_key] = (best_sec_status, days_sec)
+                second_half_players[player_key] = (deepcopy(best_sec_status), days_sec)
 
         violating_matches.append(
             ViolatingMatch(

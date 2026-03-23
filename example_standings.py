@@ -24,7 +24,9 @@ if __name__ == "__main__":
     for bfv_match in all_matches:
         if not bfv_match.parsed_result:
             continue
-        match = Match(bfv_match.homeTeamName, bfv_match.guestTeamName, *bfv_match.parsed_result, 0, 0)
+        match = Match(
+            bfv_match.homeTeamName, bfv_match.guestTeamName, *bfv_match.parsed_result, 0, 0
+        )
         simple_matches.append(match)
 
     # remove duplicates
