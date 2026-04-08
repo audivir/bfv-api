@@ -60,7 +60,7 @@ warn_unreachable = true
 exclude = ["build", "docs"]
 
 [tool.coverage.run]
-source = ["tests", "simple_io"]
+source = ["tests", "bfv_api"]
 command_line = "-m pytest"
 branch = true
 
@@ -84,7 +84,7 @@ testpaths = ["tests"]
 
 [tool.vulture]
 ignore_names = ["_*", "unused_*"]
-paths = [".whitelist", "tests", "simple_io"]
+paths = [".whitelist", "tests", "bfv_api"]
 make_whitelist = true
 sort_by_size = true
 verbose = false
