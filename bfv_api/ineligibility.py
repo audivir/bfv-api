@@ -174,6 +174,8 @@ def get_matches_with_players(
                     players[key] = (substitute, min(prev_minute or event.minute, event.minute))
                 else:
                     raise ValueError("Substituted player not in available player list")  # noqa: TRY301
+            home_team_id = m.homeTeamPermanentId or missing_value("home team ID")
+            guest_team_id = m.guestTeamPermanentId or missing_value("guest team ID")
         except ValueError:
             sp_print(f"Failed to parse match {m.guestTeamName} - {m.guestTeamName}")
             continue
@@ -185,9 +187,9 @@ def get_matches_with_players(
                 competitionName=m.competitionName,
                 kickoff=kickoff,
                 homeTeam=m.homeTeamName,
-                homeTeamId=m.homeTeamPermanentId,  # type: ignore[arg-type] # will be checked by pydantic
+                homeTeamId=home_team_id,
                 guestTeam=m.guestTeamName,
-                guestTeamId=m.guestTeamPermanentId,  # type: ignore[arg-type] # will be checked by pydantic
+                guestTeamId=guest_team_id,
                 players=players,
             )
         )
