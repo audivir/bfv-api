@@ -1,4 +1,4 @@
-"""Example of how to use the bfv_api to get the standings of a team."""
+"""Example of using bfv_api to retrieve team standings."""
 
 # ruff: noqa: N815
 from __future__ import annotations
@@ -37,7 +37,7 @@ LEGAL = "yellow", "LEGAL"
 
 
 class RomanNumeral(OrderedEnum):
-    """Ordered Roman numerals from zero to nine."""
+    """Container for Roman numerals from zero to nine."""
 
     zero = ""
     one = "I"
@@ -53,7 +53,7 @@ class RomanNumeral(OrderedEnum):
 
 @total_ordering
 class TeamSort(msgspec.Struct):
-    """Sort teams on their level and if they are equal on the roman numeral."""
+    """Coordinates team sorting by competition level and Roman numeral."""
 
     level: CompetitionLevel
     name: str
@@ -91,7 +91,7 @@ class TeamSort(msgspec.Struct):
 
 
 class PlayerStatus(msgspec.Struct):
-    """Information when a player was last used."""
+    """Encapsulates metadata regarding a player's most recent usage."""
 
     higher_team: int
     match_date: date
@@ -101,7 +101,7 @@ class PlayerStatus(msgspec.Struct):
 
 
 class PlayersMatch(msgspec.Struct):
-    """Match object including information about the players used."""
+    """Encapsulates match details and associated player information."""
 
     team: int
     matchId: str
@@ -115,12 +115,12 @@ class PlayersMatch(msgspec.Struct):
 
 
 def missing_value(key: str) -> NoReturn:
-    """Raise an ValueError that a value is missing."""
+    """Raise ValueError for missing value."""
     raise ValueError(f"Missing value for {key}")
 
 
 def get_team_info(match_report: MatchReport, club_id: str) -> MatchTeamInfo:
-    """Get the team info corresponding to the club id."""
+    """Retrieve team information for given club ID."""
     match_report_info = match_report.matchReportInfo
     if not match_report_info:
         raise ValueError("No match report info")
@@ -138,7 +138,7 @@ def get_team_info(match_report: MatchReport, club_id: str) -> MatchTeamInfo:
 def get_matches_with_players(
     team_id: str, team_ix: int, sp_print: Callable[..., None] | None = None
 ) -> list[PlayersMatch]:
-    """Get a match object including information about the players used."""
+    """Retrieve match objects including associated player information."""
     if not sp_print:
         sp_print = print
 
@@ -198,7 +198,7 @@ def get_matches_with_players(
 
 
 class ViolatingMatch(NamedTuple):
-    """Track the violations during a team's match."""
+    """Container for violation data during a team match."""
 
     team: int
     date: date
@@ -211,7 +211,7 @@ class ViolatingMatch(NamedTuple):
 
 
 class Ineligibility(NamedTuple):
-    """Track the ineligibility during matches of a club."""
+    """Container for ineligibility data during club matches."""
 
     n_teams: int
     allowed_violations: int
@@ -219,11 +219,11 @@ class Ineligibility(NamedTuple):
 
 
 def check_for_ineligibility(first_team_id: str, *team_ids: str) -> Ineligibility:  # noqa: C901, PLR0912, PLR0915
-    """Print which player were ineligible but used anyways.
+    """Identify ineligible players used in matches.
 
     Args:
         first_team_id: BFV team ID of the first team.
-        team_ids: BFV team IDs of a single club in descending order. The order will not be checked!
+        team_ids: BFV team IDs of a single club.
     """
     if not team_ids:
         return Ineligibility(0, 0, [])
@@ -258,7 +258,7 @@ def check_for_ineligibility(first_team_id: str, *team_ids: str) -> Ineligibility
         match_date = match.kickoff.date()
         current_team = match.team
 
-        # Retroactively manage winter break detection based on year rollover
+        # detect winter break based on year rollover.
         if current_team in last_team_match and match_date.year > last_team_match[current_team].year:
             first_post_winter_match[current_team] = match_date
             last_date = last_team_match[current_team]
@@ -273,7 +273,7 @@ def check_for_ineligibility(first_team_id: str, *team_ids: str) -> Ineligibility
             if not substitute or substituted is not None
         }
 
-        # evaluate restrictions against higher teams
+        # evaluate restrictions against higher-tier teams.
         first_half_violations: dict[tuple[str, str], tuple[PlayerStatus, int]] = {}
         second_half_players: dict[tuple[str, str], tuple[PlayerStatus, int]] = {}
         ka_player_first = False
@@ -285,7 +285,7 @@ def check_for_ineligibility(first_team_id: str, *team_ids: str) -> Ineligibility
 
             for higher_team, status in player_status.get(player_key, {}).items():
                 if higher_team >= current_team:
-                    continue  # strictly from higher to lower teams
+                    continue  # sort teams by rank in descending order.
 
                 reference_date = status.match_date
                 if status.is_pre_winter and higher_team in first_post_winter_match:
@@ -322,7 +322,7 @@ def check_for_ineligibility(first_team_id: str, *team_ids: str) -> Ineligibility
             )
         )
 
-        # update sat_out_games for players who did NOT play in this match
+        # update sat_out_games for players who did not participate in match.
         for player_key, team_statuses in player_status.items():
             if player_key not in used_players:
                 for higher_team, status in team_statuses.items():
@@ -331,7 +331,7 @@ def check_for_ineligibility(first_team_id: str, *team_ids: str) -> Ineligibility
                             status.sat_out_games.get(current_team, 0) + 1
                         )
 
-        # add/update deployments
+        # add or update deployments.
         for player_key in used_players:
             substitute, substituted = match.players[player_key]
             is_first_half = bool(not substitute or (substituted and substituted <= HALFTIME_MINUTE))
@@ -349,7 +349,7 @@ def check_for_ineligibility(first_team_id: str, *team_ids: str) -> Ineligibility
 
 
 class FoundTeam(NamedTuple):
-    """Information about a club's team."""
+    """Encapsulates details of a club team."""
 
     level: CompetitionLevel
     name: str
@@ -357,11 +357,11 @@ class FoundTeam(NamedTuple):
 
 
 def find_teams(club_id: str, raw_pattern: str | None) -> tuple[str, list[FoundTeam] | None]:
-    """Find the Herren Meisterschaften teams of a club.
+    """Find Herren Meisterschaften teams for a club.
 
     Args:
         club_id: BFV club ID.
-        raw_pattern: Regex pattern to match the team name. If None, the club name will be used.
+        raw_pattern: Regex pattern to match team name. If None, use club name.
     """
     club_info = BFV.get_club_info(club_id).data
     club_name = club_info.club.name
@@ -394,11 +394,11 @@ def find_teams(club_id: str, raw_pattern: str | None) -> tuple[str, list[FoundTe
 
 
 def main(club_id: str, pattern: Annotated[str | None, doctyper.Argument()] = None) -> None:  # noqa: C901
-    """Check if any ineligible players were used according to the terms of the BFV.
+    """Check for ineligible players according to BFV terms.
 
     Args:
-        club_id: BFV club ID
-        pattern: Regex pattern to match team names to (i.e., the club name)
+        club_id: BFV club ID.
+        pattern: Regex pattern to match team names.
     """
     logger.warning("End of season restrictions not implemented yet")
     club_name, found_teams = find_teams(club_id, pattern)

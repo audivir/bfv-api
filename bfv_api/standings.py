@@ -1,4 +1,4 @@
-"""Create a sports table from a list of matches."""
+"""Generate sports table from list of matches."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ POINTS_FOR_DRAW = 1
 
 
 class Match(NamedTuple):
-    """A tuple representing a match."""
+    """Container for match results and fair play statistics."""
 
     home: str
     guest: str
@@ -29,7 +29,7 @@ class Match(NamedTuple):
 
 @dataclass
 class Team:
-    """A team in a sports table."""
+    """Encapsulates statistics and metadata for a sports table team."""
 
     name: str
     games: int = 0
@@ -46,7 +46,7 @@ class Team:
 
 
 class Tiebreaker(Enum):
-    """A type of ordering a table by."""
+    """Defines tiebreaking criteria for ordering a sports table."""
 
     POINTS = auto()
     HEAD_TO_HEAD = auto()
@@ -60,7 +60,7 @@ class Tiebreaker(Enum):
 def sort_group(  # noqa: C901
     teams: list[Team], type_: Tiebreaker, special: list[Tiebreaker] | None = None
 ) -> list[list[Team]]:
-    """Sort teams by points."""
+    """Sort teams using specified tiebreaking criteria."""
     if type_ is Tiebreaker.HEAD_TO_HEAD:
         if not special:
             raise ValueError(
@@ -117,16 +117,15 @@ def sort_group(  # noqa: C901
 def tiebreaker_sort(
     teams: list[Team], tiebreakers: deque[Tiebreaker], special: list[Tiebreaker] | None = None
 ) -> list[Team | list[Team]]:
-    """Sort a list of teams by a list of tiebreakers.
+    """Sort teams using specified tiebreaking criteria.
 
     Args:
-        teams: The teams to sort.
-        tiebreakers: A deque of tiebreakers to use.
-        special: A list of special tiebreakers to use for `Tiebreaker.HEAD_TO_HEAD`.
+        teams: Teams to sort.
+        tiebreakers: Sequence of tiebreakers to apply.
+        special: Optional tiebreakers for `Tiebreaker.HEAD_TO_HEAD` resolution.
 
     Returns:
-        A list of teams or groups of teams (if there are unresolved ties),
-        sorted by the tiebreakers.
+        Sorted list of teams or nested groups for unresolved ties.
     """
     if not tiebreakers:
         return [teams]
@@ -136,7 +135,7 @@ def tiebreaker_sort(
     sorted_groups = sort_group(teams, current_type, special)
 
     sorted_table: list[Team | list[Team]] = []
-    # Group and resolve ties recursively
+    # recursively resolve ties within groups.
     for group in sorted_groups:
         if len(group) > 1:
             subsorted = tiebreaker_sort(group, tiebreakers.copy(), special)
@@ -147,7 +146,7 @@ def tiebreaker_sort(
 
 
 def create_standings(matches: Iterable[Match]) -> list[Team]:
-    """Create a sports table from a list of matches."""
+    """Generate league standings from a sequence of matches."""
     standings: dict[str, Team] = {}
     for match in matches:
         home = standings.setdefault(match.home, Team(match.home))
@@ -183,7 +182,7 @@ def create_standings(matches: Iterable[Match]) -> list[Team]:
 
 
 def _show_standings(teams: Iterable[Team]) -> None:
-    """Prints the table to the console."""
+    """Print league standings table to console."""
     print("Rank\tTeam\t\t\t\t\tGames\tPoints\tWins\tDraws\tLosses\tGF\tGA\tFP")  # noqa: T201
     for ix, team in enumerate(teams):
         print(  # noqa: T201
@@ -194,7 +193,7 @@ def _show_standings(teams: Iterable[Team]) -> None:
 
 
 def _verify_standings(teams: list[Team | list[Team]]) -> list[Team]:
-    """Verify that the table contains only teams."""
+    """Validate that standings list contains only Team objects."""
     if not all(isinstance(team, Team) for team in teams):
         raise ValueError("Table contains non-team objects")
     return teams  # type: ignore[return-value]
@@ -209,12 +208,12 @@ def show_standings(
         Tiebreaker.GOALS_FOR,
     ),
 ) -> None:
-    """Show the table of the matches.
+    """Display league standings table.
 
     Args:
-        matches: The matches to show the table of.
-        tiebreakers: An iterable of tiebreakers to use.
-        special: An iterable of special tiebreakers to use for `Tiebreaker.HEAD_TO_HEAD`.
+        matches: Sequence of matches to process.
+        tiebreakers: Iterable of tiebreakers for ranking.
+        special: Iterable of tiebreakers used specifically for `Tiebreaker.HEAD_TO_HEAD`.
     """
     teams = create_standings(matches)
 
@@ -226,7 +225,7 @@ def show_standings(
 
 
 def test_show_standings() -> None:
-    """Test the `show_standings` function."""
+    """Verify that standings are correctly displayed for a set of match results."""
     inputs = [
         Match("A", "B", 1, 1, 1, 1),
         Match("B", "C", 1, 1, 1, 1),

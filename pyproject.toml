@@ -94,6 +94,7 @@ dummy-variable-rgx = "^(dummy_.*|unused_.*|_)$"
 select = ["ALL"]
 
 ignore = [
+  "CPY001", # Missing copyright notice at top of file
   "PLC0415", # `import` should be at the top-level of a file
   "ISC001", # implicit-str-concat
   "COM812", # missing-trailing-comma

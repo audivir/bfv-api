@@ -1,4 +1,4 @@
-"""A module for retrieving data from the BFV API."""
+"""Retrieve data from BFV API."""
 
 from __future__ import annotations
 

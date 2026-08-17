@@ -1,4 +1,4 @@
-"""Retrieve data from the BFV API."""
+"""Retrieve data from BFV API."""
 
 # ruff: noqa: N806, N815
 from __future__ import annotations
@@ -59,11 +59,11 @@ TeamT = Literal[
 
 
 def typed_get(endpoint: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    """Create a typed get method."""
+    """Create decorator for typed GET endpoint."""
 
     def _typed_get(func: Callable[P, R]) -> Callable[P, R]:
-        """Create a typed get method."""
-        # parse string type annotations to python types
+        """Create decorator for typed GET endpoint."""
+        # resolve string type annotations to Python types.
         func.__annotations__ = get_type_hints(func)
         return get(endpoint)(func)  # type: ignore[no-any-return]
 
@@ -71,7 +71,7 @@ def typed_get(endpoint: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
 
 
 class CompetitionLevel(OrderedEnum):
-    """All levels in Bavarian football."""
+    """Defines competition levels for Bavarian football."""
 
     kreisfreundschaftsspiele = "Kreisfreundschaftsspiele"
     bezirksfreundschaftsspiele = "Bezirksfreundschaftsspiele"
@@ -81,16 +81,16 @@ class CompetitionLevel(OrderedEnum):
     kreispokal = "Kreispokal"
     verbandspokal = "Verbands-Pokal"
 
-    kinderfussball = "Kinderfußball"  # JUGEND
-    gruppe = "Gruppe"  # JUGEND
-    foerderliga = "Förderliga"  # JUGEND
+    kinderfussball = "Kinderfußball"  # youth level.
+    gruppe = "Gruppe"  # youth level.
+    foerderliga = "Förderliga"  # youth level.
     c_klasse = "C Klasse"
     b_klasse = "B Klasse"
     a_klasse = "A Klasse"
     kreisklasse = "Kreisklasse"
     kreisliga = "Kreisliga"
     bezirksliga = "Bezirksliga"
-    bezirksoberliga = "Bezirksoberliga"  # JUGEND
+    bezirksoberliga = "Bezirksoberliga"  # youth level.
     landesliga = "Landesliga"
     bayernliga = "Bayernliga"
     regionalliga = "Regionalliga Bayern"
@@ -99,7 +99,7 @@ class CompetitionLevel(OrderedEnum):
 
 
 class EventType(IntEnum):
-    """The type of an event."""
+    """Defines categories of match events."""
 
     SUBSTITUTE_IN = -2
     SUBSTITUTE_OUT = -1
@@ -113,7 +113,7 @@ class EventType(IntEnum):
 
 
 class CompetitionType(IntEnum):
-    """Enum numbers of different competition types."""
+    """Defines categories of competition types."""
 
     Meisterschaften = 1
     Hallenturniere = 2
@@ -123,7 +123,7 @@ class CompetitionType(IntEnum):
 
 
 class Team(msgspec.Struct):
-    """A team from the BFV API."""
+    """Encapsulates team data from BFV API."""
 
     permanentId: str
     name: str
@@ -137,7 +137,7 @@ class Team(msgspec.Struct):
 
 
 class TeamInfo(NamedTuple):
-    """Information about a single team."""
+    """Encapsulates data for a single team."""
 
     teamName: str
     teamPermanentId: str | None
@@ -146,7 +146,7 @@ class TeamInfo(NamedTuple):
 
 
 class Match(msgspec.Struct):
-    """A match from the BFV API."""
+    """Encapsulates match data from BFV API."""
 
     matchId: str
     compoundId: str
@@ -170,15 +170,14 @@ class Match(msgspec.Struct):
 
     @property
     def parsed_result(self) -> tuple[int, int] | None:
-        """Result string as a tuple of integers."""
+        """Parse result string into tuple of integers."""
         return parse_result(self)
 
     def select_team(self, pattern: str) -> tuple[Literal[0, 1], TeamInfo, TeamInfo] | None:
-        """Select the info of a team based a regex pattern matching the team name.
+        """Select team info based on regex pattern matching team name.
 
         Returns:
-            A tuple with the index for the parsed result,
-            the selected team's info and the other team's info.
+            Tuple containing index of matched team, matched team info, and opposing team info.
         """
         home = TeamInfo(
             self.homeTeamName, self.homeTeamPermanentId, self.homeClubId, self.homeLogoPrivate
@@ -200,21 +199,21 @@ class Match(msgspec.Struct):
 
 
 class ShortMatches(msgspec.Struct):
-    """The data from the BFV API."""
+    """Encapsulates short match data from BFV API."""
 
     matches: list[Match]
     actualMatchId: str
 
 
 class Matches(ShortMatches):
-    """The data from the BFV API."""
+    """Encapsulates match data from BFV API."""
 
     team: Team
     actualTickeredMatchId: str | None
 
 
 class Club(msgspec.Struct):
-    """A club from the BFV API."""
+    """Encapsulates club data from BFV API."""
 
     id: str
     name: str
@@ -223,34 +222,34 @@ class Club(msgspec.Struct):
 
 
 class ClubInfo(msgspec.Struct):
-    """The data from the BFV API."""
+    """Encapsulates club information from BFV API."""
 
     club: Club
     number: str
 
 
 class Season(msgspec.Struct):
-    """A season from the BFV API."""
+    """Encapsulates season data from BFV API."""
 
     id: str
     name: str
 
 
 class ShortTeam(msgspec.Struct):
-    """A team from the BFV API."""
+    """Encapsulates team data from BFV API."""
 
     permanentId: str
     name: str | None
 
 
 class Player(msgspec.Struct):
-    """A player from the BFV API."""
+    """Encapsulates player data from BFV API."""
 
     test: str
 
 
 class PlayerInfo(msgspec.Struct):
-    """The data from the BFV API."""
+    """Encapsulates player data from BFV API."""
 
     photoUrlThumb: str
     photoUrlStamp: str
@@ -258,12 +257,12 @@ class PlayerInfo(msgspec.Struct):
 
     @property
     def id(self) -> str:
-        """Player ID."""
+        """Return player ID."""
         return Path(self.photoUrlImage).stem
 
 
 class MatchPlayer(msgspec.Struct):
-    """A player from the BFV API."""
+    """Encapsulates player data from BFV API."""
 
     name: str
     number: int
@@ -274,7 +273,7 @@ class MatchPlayer(msgspec.Struct):
 
 
 class Squad(msgspec.Struct):
-    """A squad from the BFV API."""
+    """Encapsulates squad data from BFV API."""
 
     public: bool
     season: Season
@@ -283,7 +282,7 @@ class Squad(msgspec.Struct):
 
 
 class Venue(msgspec.Struct):
-    """A venue from the BFV API."""
+    """Encapsulates venue data from BFV API."""
 
     type: Literal[0, 1, 3]
     typeName: Literal["Rasenplatz", "Kunstrasenplatz"] | None
@@ -294,7 +293,7 @@ class Venue(msgspec.Struct):
 
 
 class MatchEvent(msgspec.Struct):
-    """A match event from the BFV API."""
+    """Encapsulates match event data from BFV API."""
 
     minute: int
     additionalTimeMinute: int
@@ -304,7 +303,7 @@ class MatchEvent(msgspec.Struct):
 
 
 class MatchTeamInfo(msgspec.Struct):
-    """A team from the BFV API."""
+    """Encapsulates team data from BFV API."""
 
     trainer: str
     players: list[MatchPlayer]
@@ -312,7 +311,7 @@ class MatchTeamInfo(msgspec.Struct):
 
 
 class MatchReportInfo(msgspec.Struct):
-    """The data from the BFV API."""
+    """Encapsulates match report data from BFV API."""
 
     home: MatchTeamInfo | None
     guest: MatchTeamInfo | None
@@ -323,7 +322,7 @@ class MatchReportInfo(msgspec.Struct):
 
 
 class MatchReport(msgspec.Struct):
-    """A match report from the BFV API."""
+    """Encapsulates match report data from BFV API."""
 
     staffelzusatz: str
     matchId: str
@@ -352,12 +351,12 @@ class MatchReport(msgspec.Struct):
 
     @property
     def parsed_result(self) -> tuple[int, int] | None:
-        """Result string as a tuple of integers."""
+        """Parse result string into tuple of integers."""
         return parse_result(self)
 
 
 class StandingsTeam(msgspec.Struct):
-    """A team in the standings."""
+    """Encapsulates team data within league standings."""
 
     seasonId: str | None
     seasonName: str
@@ -378,20 +377,20 @@ class StandingsTeam(msgspec.Struct):
 
 
 class MatchDay(msgspec.Struct):
-    """A match day."""
+    """Encapsulates match day metadata."""
 
     spieltag: str
     bezeichnung: str
 
 
 class HasStaffelzusatz(Protocol):
-    """Object with a staffelzusatz attribute."""
+    """Interface for objects providing a staffelzusatz attribute."""
 
     staffelzusatz: str
 
 
 class StaffelInfo(msgspec.Struct):
-    """Information about the staffel."""
+    """Encapsulates staffel metadata."""
 
     competitionType: CompetitionT
     teamType: TeamT
@@ -400,7 +399,7 @@ class StaffelInfo(msgspec.Struct):
 
     @classmethod
     def from_model(cls, model: HasStaffelzusatz) -> Self:
-        """Create the staffel information from staffelzusatz attribute."""
+        """Create staffel information from staffelzusatz attribute."""
         competitionType, teamType, competitionLevel, competitionArea = model.staffelzusatz.split(
             " | "
         )
@@ -416,7 +415,7 @@ class StaffelInfo(msgspec.Struct):
 
 
 class Competition(msgspec.Struct):
-    """A competition."""
+    """Encapsulates competition metadata and schedule."""
 
     saison: str
     compoundId: str
@@ -439,13 +438,13 @@ class Competition(msgspec.Struct):
     actualMatchDay: str
 
     def __post_init__(self) -> None:
-        """Validate our enum is correct."""
+        """Validate consistency between staffel type name and ID."""
         if self.staffelTypName != self.staffelTypId.name:
             raise ValueError("Competition mismatch")
 
 
 class TopScorerPlayer(msgspec.Struct):
-    """A player in the top scorer."""
+    """Encapsulates statistics and metadata for a top-scoring player."""
 
     playerImage: str
     playerImageStamp: str
@@ -457,7 +456,7 @@ class TopScorerPlayer(msgspec.Struct):
 
 
 class TopScorer(msgspec.Struct):
-    """A top scorer."""
+    """Encapsulates top scorer data for a specific competition."""
 
     compoundId: str
     competitionName: str
@@ -466,7 +465,7 @@ class TopScorer(msgspec.Struct):
 
 
 class Standings(msgspec.Struct):
-    """A standings."""
+    """Encapsulates league standings and team rankings for a competition."""
 
     compoundId: str
     competitionName: None
@@ -474,7 +473,7 @@ class Standings(msgspec.Struct):
 
 
 class Response(msgspec.Struct, Generic[DataT]):
-    """A response from the BFV API."""
+    """Encapsulates a response from BFV API."""
 
     state: int
     message: str | None
@@ -482,14 +481,14 @@ class Response(msgspec.Struct, Generic[DataT]):
 
 
 def parse_result(match: Match | MatchReport, _parse: bool = True) -> tuple[int, int] | None:  # noqa: C901, PLR0911
-    """Parse the result string into a tuple of integers."""
+    """Parse match result into tuple of integers."""
     result = match.result
     home = match.homeTeamName.strip()
     if not match.guestTeamName or not result or result == "Abse.":
-        # game not yet played or cancelled or no opponent
+        # game not yet played, cancelled, or missing opponent.
         return None
     if result == "Abbr.":
-        # game interrupted but no verdict yet
+        # game interrupted without verdict.
         return -1, -1
     guest = match.guestTeamName.strip()
     if result == "n.an.":
@@ -518,29 +517,29 @@ def parse_result(match: Match | MatchReport, _parse: bool = True) -> tuple[int, 
 
 
 class BFVConsumer(Consumer):  # type: ignore[misc]
-    """A Python Client for the BFV API."""
+    """Client for BFV API."""
 
     @typed_get("/api/service/widget/v1/team/{team_id}/matches")
     def get_team_matches(self, team_id: str) -> Response[Matches]:  # type: ignore[empty-body]
-        """Retrieves the team's matches."""
+        """Retrieve matches for specified team."""
 
     @typed_get("/api/service/widget/v1/team/{team_id}/squad")
     def get_team_squad(self, team_id: str) -> Response[Squad]:  # type: ignore[empty-body]
-        """Retrieves the team's squad."""
+        """Retrieve squad for specified team."""
 
     @typed_get("/rest/competitioncontroller/competition/id/{competition_id}")
     def get_competition(self, competition_id: str) -> Response[Competition]:  # type: ignore[empty-body]
-        """Retrieves the competition for the current match day."""
+        """Retrieve competition for specified competition ID."""
 
     @typed_get("/rest/competitioncontroller/competition/id/{competition_id}/matchday/{match_day}")
     def get_competition_for_match_day(  # type: ignore[empty-body]
         self, competition_id: str, match_day: int
     ) -> Response[Competition]:
-        """Retrieves the competition for the given match day."""
+        """Retrieve competition for specified match day."""
 
     @typed_get("/api/service/widget/v1/competition/{competition_id}/topscorer")
     def get_competition_top_scorer(self, competition_id: str) -> Response[TopScorer | None]:  # type: ignore[empty-body]
-        """Retrieves the competition's top scorer."""
+        """Retrieve top scorer for specified competition."""
 
     @typed_get("/rest/competitioncontroller/competition/table/{standings_type}/id/{competition_id}")
     def get_competition_standings(  # type: ignore[empty-body]
@@ -548,32 +547,32 @@ class BFVConsumer(Consumer):  # type: ignore[misc]
         competition_id: str,
         standings_type: Literal["", "home", "away", "firsthalfseason", "secondhalfseason"] = "",
     ) -> Response[Standings]:
-        """Retrieves the competition's standings."""
+        """Retrieve standings for specified competition."""
 
     @typed_get("/rest/clubcontroller/fixtures/id/{club_id}/matchtype/{match_type}")
     def get_club_matches(  # type: ignore[empty-body]
         self, club_id: str, match_type: Literal["all", "home", "away", "team"] = "all"
     ) -> Response[ShortMatches]:
-        """Retrieves the club's matches."""
+        """Retrieve matches for specified club."""
 
     @typed_get("/api/service/widget/v1/club/{club_id}/info")
     def get_club_info(self, club_id: str) -> Response[ClubInfo]:  # type: ignore[empty-body]
-        """Retrieves the club's information."""
+        """Retrieve information for specified club."""
 
     @typed_get("/api/service/widget/v1/club/info?teamPermanentId={team_id}")
     def get_club_info_from_team(self, team_id: str) -> Response[ClubInfo]:  # type: ignore[empty-body]
-        """Retrieves the club's information from a team ID."""
+        """Retrieve club information for specified team ID."""
 
     @typed_get("/rest/matchcontroller/matchreport/id/{match_id}")
     def get_match_report(self, match_id: str) -> Response[MatchReport]:  # type: ignore[empty-body]
-        """Retrieves the match report."""
+        """Retrieve report for specified match."""
 
 
 BFV = BFVConsumer(base_url="https://widget-prod.bfv.de")
 
 
 def test_all() -> None:
-    """Test all endpoints."""
+    """Verify all API endpoints."""
     fcbayern_u13 = "01BKG17M3S000000VV0AG811VTNTKEKF"
 
     result = BFV.get_club_info_from_team(fcbayern_u13).data

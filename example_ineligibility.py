@@ -1,4 +1,4 @@
-"""Test the ineligibility module."""
+"""Test ineligibility module."""
 
 from __future__ import annotations
 

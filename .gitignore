@@ -8,3 +8,6 @@ dist/
 .pdm-build/
 .ruff_cache/
 .pytest_cache/
+uv.lock
+.pdm-python
+.venv/
