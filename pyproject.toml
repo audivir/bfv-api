@@ -4,10 +4,9 @@ dynamic = ["version"]
 dependencies = [
     "doctyper",
     "ordered_enum",
-    "pydantic",
     "rich",
-    "uplink",
-    "uplink-msgspec",
+    "uplink @ git+https://github.com/audivir/uplink.git@fix/entry-point-group-filter-and-deferred-annotations",
+    "uplink-msgspec @ git+https://github.com/audivir/uplink-msgspec.git",
     "yaspin"
 ]
 requires-python = ">=3.10"
