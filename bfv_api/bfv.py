@@ -7,16 +7,12 @@ import logging
 import re
 from enum import IntEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Generic, Literal, NamedTuple, Protocol, TypeVar
+from typing import Generic, Literal, NamedTuple, Protocol, TypeVar
 
 import msgspec
-from doctyper._typing import get_type_hints
+from mxhttp import SyncConsumer, get
 from ordered_enum import OrderedEnum
 from typing_extensions import ParamSpec, Self
-from uplink import Consumer, get
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -56,18 +52,6 @@ TeamT = Literal[
     "U13 Junioren",
     "Freizeitsport Herren",
 ]
-
-
-def typed_get(endpoint: str) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    """Create decorator for typed GET endpoint."""
-
-    def _typed_get(func: Callable[P, R]) -> Callable[P, R]:
-        """Create decorator for typed GET endpoint."""
-        # resolve string type annotations to Python types.
-        func.__annotations__ = get_type_hints(func)
-        return get(endpoint)(func)  # type: ignore[no-any-return]
-
-    return _typed_get
 
 
 class CompetitionLevel(OrderedEnum):
@@ -516,32 +500,32 @@ def parse_result(match: Match | MatchReport, _parse: bool = True) -> tuple[int, 
         raise ValueError(f"Invalid result string for {home} vs {guest}: {result}") from e
 
 
-class BFVConsumer(Consumer):  # type: ignore[misc]
+class BFVConsumer(SyncConsumer):
     """Client for BFV API."""
 
-    @typed_get("/api/service/widget/v1/team/{team_id}/matches")
+    @get("/api/service/widget/v1/team/{team_id}/matches")
     def get_team_matches(self, team_id: str) -> Response[Matches]:  # type: ignore[empty-body]
         """Retrieve matches for specified team."""
 
-    @typed_get("/api/service/widget/v1/team/{team_id}/squad")
+    @get("/api/service/widget/v1/team/{team_id}/squad")
     def get_team_squad(self, team_id: str) -> Response[Squad]:  # type: ignore[empty-body]
         """Retrieve squad for specified team."""
 
-    @typed_get("/rest/competitioncontroller/competition/id/{competition_id}")
+    @get("/rest/competitioncontroller/competition/id/{competition_id}")
     def get_competition(self, competition_id: str) -> Response[Competition]:  # type: ignore[empty-body]
         """Retrieve competition for specified competition ID."""
 
-    @typed_get("/rest/competitioncontroller/competition/id/{competition_id}/matchday/{match_day}")
+    @get("/rest/competitioncontroller/competition/id/{competition_id}/matchday/{match_day}")
     def get_competition_for_match_day(  # type: ignore[empty-body]
         self, competition_id: str, match_day: int
     ) -> Response[Competition]:
         """Retrieve competition for specified match day."""
 
-    @typed_get("/api/service/widget/v1/competition/{competition_id}/topscorer")
+    @get("/api/service/widget/v1/competition/{competition_id}/topscorer")
     def get_competition_top_scorer(self, competition_id: str) -> Response[TopScorer | None]:  # type: ignore[empty-body]
         """Retrieve top scorer for specified competition."""
 
-    @typed_get("/rest/competitioncontroller/competition/table/{standings_type}/id/{competition_id}")
+    @get("/rest/competitioncontroller/competition/table/{standings_type}/id/{competition_id}")
     def get_competition_standings(  # type: ignore[empty-body]
         self,
         competition_id: str,
@@ -549,21 +533,21 @@ class BFVConsumer(Consumer):  # type: ignore[misc]
     ) -> Response[Standings]:
         """Retrieve standings for specified competition."""
 
-    @typed_get("/rest/clubcontroller/fixtures/id/{club_id}/matchtype/{match_type}")
+    @get("/rest/clubcontroller/fixtures/id/{club_id}/matchtype/{match_type}")
     def get_club_matches(  # type: ignore[empty-body]
         self, club_id: str, match_type: Literal["all", "home", "away", "team"] = "all"
     ) -> Response[ShortMatches]:
         """Retrieve matches for specified club."""
 
-    @typed_get("/api/service/widget/v1/club/{club_id}/info")
+    @get("/api/service/widget/v1/club/{club_id}/info")
     def get_club_info(self, club_id: str) -> Response[ClubInfo]:  # type: ignore[empty-body]
         """Retrieve information for specified club."""
 
-    @typed_get("/api/service/widget/v1/club/info?teamPermanentId={team_id}")
+    @get("/api/service/widget/v1/club/info?teamPermanentId={team_id}")
     def get_club_info_from_team(self, team_id: str) -> Response[ClubInfo]:  # type: ignore[empty-body]
         """Retrieve club information for specified team ID."""
 
-    @typed_get("/rest/matchcontroller/matchreport/id/{match_id}")
+    @get("/rest/matchcontroller/matchreport/id/{match_id}")
     def get_match_report(self, match_id: str) -> Response[MatchReport]:  # type: ignore[empty-body]
         """Retrieve report for specified match."""
 

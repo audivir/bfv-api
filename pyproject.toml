@@ -5,8 +5,7 @@ dependencies = [
     "doctyper",
     "ordered_enum",
     "rich",
-    "uplink @ git+https://github.com/audivir/uplink.git@fix/entry-point-group-filter-and-deferred-annotations",
-    "uplink-msgspec @ git+https://github.com/audivir/uplink-msgspec.git",
+    "mxhttp",
     "yaspin"
 ]
 requires-python = ">=3.10"
