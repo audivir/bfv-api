@@ -8,4 +8,4 @@ github_org: audivir
 project_name: bfv-api
 project_slug: bfv_api
 project_type: python
-publishable: true
+publishable: false
