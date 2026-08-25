@@ -77,12 +77,12 @@ class TeamSort(msgspec.Struct):
             return self.level < obj.level  # type: ignore[no-any-return]
         chunk = self._get_chunk(self.name)
         chunk_numeral = RomanNumeral.zero
-        if chunk:
+        if chunk:  # pragma: no branch
             with contextlib.suppress(ValueError):
                 chunk_numeral = RomanNumeral(chunk)
         obj_chunk = self._get_chunk(obj.name)
         obj_chunk_numeral = RomanNumeral.zero
-        if obj_chunk:
+        if obj_chunk:  # pragma: no branch
             with contextlib.suppress(ValueError):
                 obj_chunk_numeral = RomanNumeral(obj_chunk)
         if chunk_numeral == obj_chunk_numeral:

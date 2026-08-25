@@ -102,7 +102,7 @@ def sort_group(  # noqa: C901
             return team.away_goals_for
         if type_ is Tiebreaker.RANDOM:
             return int(team.uuid, 16)
-        raise ValueError(f"Invalid order type: {type_}")
+        raise ValueError(f"Invalid order type: {type_}")  # pragma: no cover
 
     sorted_teams = sorted(teams, key=get_value, reverse=True)
     groups: list[list[Team]] = []

@@ -30,7 +30,7 @@ Repository = "https://github.com/audivir/bfv-api"
 Issues = "https://github.com/audivir/bfv-api/issues"
 
 [dependency-groups]
-dev = ["mypy", "pytest", "coverage", "prek", "ruff"]
+dev = ["mypy", "pytest", "coverage", "prek", "ruff", "httpx"]
 
 [tool.pdm.version]
 source = "file"
@@ -66,7 +66,7 @@ exclude_also = [
   "@overload",
   "\\.\\.\\.",
 ]
-# fail_under = 100 not yet tested
+fail_under = 100
 show_missing = true
 
 [tool.pytest.ini_options]

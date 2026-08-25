@@ -38,8 +38,9 @@ TeamT: TypeAlias = Literal[
     "E-Juniorinnen",
     "Herren Ü60",
     "Herren Ü50",
-    "Herren Ü40",
     "Herren Ü45",
+    "Herren Ü40",
+    "Herren Ü35",
     "Herren Ü32",
     "Herren",
     "A-Junioren",
@@ -315,7 +316,7 @@ class MatchReport(msgspec.Struct):
     startTime: str
     leageName: str
     season: str
-    homeTeamName: str
+    homeTeamName: str | None
     guestTeamName: str | None
     homeTeamClubId: str | None
     guestTeamClubId: str | None
@@ -467,7 +468,7 @@ class Response(msgspec.Struct, Generic[DataT]):
 def parse_result(match: Match | MatchReport, _parse: bool = True) -> tuple[int, int] | None:  # noqa: C901, PLR0911
     """Parses match result into tuple of integers."""
     result = match.result
-    home = match.homeTeamName.strip()
+    home = (match.homeTeamName or "").strip()
     if not match.guestTeamName or not result or result == "Abse.":
         # game not yet played, cancelled, or missing opponent.
         return None
