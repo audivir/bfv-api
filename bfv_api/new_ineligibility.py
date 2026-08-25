@@ -1,12 +1,13 @@
-"""Verify compliance with BFV Spielordnung Sec. 34 Nr. 2 (effective 06.07.2026).
+"""Verifies compliance with BFV Spielordnung Sec. 34 Nr. 2 (effective 06.07.2026).
 
 Enforces rules regarding player eligibility across different teams within a club.
 
 Implementation Details:
-- Players appearing in a higher team's match are ineligible for the lower team's next match.
-- Up to two players who appeared only in the second half of a higher team's match are exempt.
-- Kreisebene bonus: One additional arbitrary player is exempt if both teams play at Kreisebene.
-- Kreisebene bonus: Up to two additional second-half players are exempt if the higher team plays
+- Players appearing in a match of a higher team are ineligible for the next match of the lower
+  team.
+- Up to two players who appeared only in the second half of a match of a higher team are exempt.
+- Kreisebene bonus: one additional arbitrary player is exempt if both teams play at Kreisebene.
+- Kreisebene bonus: up to two additional second-half players are exempt if the higher team plays
   at Kreisebene and the lower team plays in B-/C-Klasse (or lowest tier A-Klasse).
 - For clubs with 3+ teams, all higher teams are pooled when calculating restrictions.
 
@@ -19,7 +20,7 @@ Limitations:
 from __future__ import annotations
 
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Annotated, NamedTuple
+from typing import TYPE_CHECKING, Annotated, NamedTuple, TypeAlias
 
 import doctyper
 from rich import print  # noqa: A004
@@ -32,16 +33,16 @@ from bfv_api.ineligibility import PlayersMatch, find_teams, get_matches_with_pla
 if TYPE_CHECKING:
     from datetime import date, datetime
 
-# base quota for second-half-only exemptions (Sec. 34 Nr. 2.3).
+# base quota for second-half-only exemptions (Sec. 34 Nr. 2.3)
 SECOND_HALF_QUOTA = 2
-# arbitrary exemption for Kreisebene-sourced players (Sec. 34 Nr. 2.4).
+# arbitrary exemption for Kreisebene-sourced players (Sec. 34 Nr. 2.4)
 KREISEBENE_ARBITRARY_QUOTA = 1
-# additional second-half-only exemptions for Kreisebene (Sec. 34 Nr. 2.5).
+# additional second-half-only exemptions for Kreisebene (Sec. 34 Nr. 2.5)
 KREISEBENE_SECOND_HALF_BONUS = 2
-# threshold minute for second-half-only player status.
+# threshold minute for second-half-only player status
 HALFTIME_MINUTE = 45
 
-PlayerKey = tuple[str, str]
+PlayerKey: TypeAlias = tuple[str, str]
 
 # determine if A-Klasse is bottom tier for a Kreis (Sec. 34 Nr. 2.5) via substring match
 # against `StaffelInfo.competitionArea`. defaults to False for unconfirmed Kreise.
@@ -49,22 +50,22 @@ KREISE_WHERE_A_KLASSE_IS_LOWEST: frozenset[str] = frozenset()
 
 
 def is_a_klasse_lowest_tier(competition_area: str) -> bool:
-    """Determine if A-Klasse is the bottom tier of the given Kreis (Sec. 34 Nr. 2.5)."""
+    """Determines if A-Klasse is the bottom tier of the given Kreis (Sec. 34 Nr. 2.5)."""
     return any(name in competition_area for name in KREISE_WHERE_A_KLASSE_IS_LOWEST)
 
 
 def is_kreisebene(level: CompetitionLevel) -> bool:
-    """Determine if competition level is run at Kreis (district) level (Sec. 34 Nr. 2.4)."""
+    """Determines if competition level is run at Kreis (district) level (Sec. 34 Nr. 2.4)."""
     return level <= CompetitionLevel.kreisliga  # type: ignore[operator,no-any-return]
 
 
 def is_b_c_klasse(level: CompetitionLevel) -> bool:
-    """Determine if level is B- or C-Klasse (Sec. 34 Nr. 2.5, unconditional part)."""
+    """Determines if level is B- or C-Klasse (Sec. 34 Nr. 2.5, unconditional part)."""
     return level <= CompetitionLevel.b_klasse  # type: ignore[operator,no-any-return]
 
 
 def is_second_half_bonus_eligible(level: CompetitionLevel, competition_area: str) -> bool:
-    """Determine if level is eligible for second half bonus (Sec. 34 Nr. 2.5)."""
+    """Determines if level is eligible for second half bonus (Sec. 34 Nr. 2.5)."""
     if is_b_c_klasse(level):
         return True
     return level == CompetitionLevel.a_klasse and is_a_klasse_lowest_tier(competition_area)
@@ -78,7 +79,7 @@ class AppearanceKind(Enum):
 
 
 class HigherTeamAppearance(NamedTuple):
-    """Encapsulates player appearance in higher team match."""
+    """Stores player appearance in higher team match."""
 
     higher_team: int
     higher_team_level: CompetitionLevel
@@ -89,14 +90,14 @@ class HigherTeamAppearance(NamedTuple):
 
 
 class MatchViolation(NamedTuple):
-    """Encapsulates player usage in violation of Sec. 34 Nr. 2."""
+    """Stores player usage in violation of Sec. 34 Nr. 2."""
 
     player_key: PlayerKey
     appearance: HigherTeamAppearance
 
 
 class CheckedMatch(NamedTuple):
-    """Encapsulates results of violation check for lower-team match."""
+    """Stores results of violation check for lower-team match."""
 
     team: int
     date: date
@@ -106,8 +107,8 @@ class CheckedMatch(NamedTuple):
     violations: list[MatchViolation]
 
 
-def _used_players(players: dict[PlayerKey, tuple[bool, int | None]]) -> set[PlayerKey]:
-    """Return set of players who participated as starters or substitutes."""
+def used_players(players: dict[PlayerKey, tuple[bool, int | None]]) -> set[PlayerKey]:
+    """Returns the set of players who participated as starters or substitutes."""
     return {
         k
         for k, (substitute, substituted) in players.items()
@@ -116,34 +117,34 @@ def _used_players(players: dict[PlayerKey, tuple[bool, int | None]]) -> set[Play
 
 
 def classify_appearance(substitute: bool, substituted_minute: int | None) -> AppearanceKind:
-    """Classify higher-team appearance according to Sec. 34 Nr. 2.1/2.3."""
+    """Classifies higher-team appearance according to Sec. 34 Nr. 2.1/2.3."""
     if substitute and substituted_minute is not None and substituted_minute > HALFTIME_MINUTE:
         return AppearanceKind.SECOND_HALF_ONLY
     return AppearanceKind.FULL
 
 
 def get_staffel_info(team_id: str) -> StaffelInfo:
-    """Fetch current competition level and Kreis for team."""
+    """Fetches current competition level and Kreis for team."""
     compound_id = BFV.get_team_matches(team_id).data.team.compoundId
     competition = BFV.get_competition(compound_id).data
     return StaffelInfo.from_model(competition)
 
 
-def _appearances_in_window(
+def appearances_in_window(
     higher_matches: list[PlayersMatch],
     higher_team: int,
     higher_level: CompetitionLevel,
     window_start: datetime | None,
     window_end: datetime,
 ) -> dict[PlayerKey, HigherTeamAppearance]:
-    """Collect appearances of higher team players within specified time window."""
+    """Collects appearances of higher team players within the specified time window."""
     appearances: dict[PlayerKey, HigherTeamAppearance] = {}
     for hm in higher_matches:
         if hm.kickoff >= window_end:
             break
         if window_start is not None and hm.kickoff <= window_start:
             continue
-        for player_key in _used_players(hm.players):
+        for player_key in used_players(hm.players):
             substitute, substituted_minute = hm.players[player_key]
             kind = classify_appearance(substitute, substituted_minute)
             appearance = HigherTeamAppearance(
@@ -157,14 +158,14 @@ def _appearances_in_window(
     return appearances
 
 
-def _check_match(
+def check_match(
     m: PlayersMatch,
     at_risk: dict[PlayerKey, HigherTeamAppearance],
     lower_level: CompetitionLevel,
     lower_competition_area: str,
 ) -> CheckedMatch:
-    """Apply Sec. 34 Nr. 2.2-2.5 exemption quotas to lower-team match."""
-    used = _used_players(m.players)
+    """Applies Sec. 34 Nr. 2.2-2.5 exemption quotas to the lower-team match."""
+    used = used_players(m.players)
     relevant = {k: a for k, a in at_risk.items() if k in used}
 
     full_bans = {k: a for k, a in relevant.items() if a.kind is AppearanceKind.FULL}
@@ -196,7 +197,7 @@ def _check_match(
 
 
 def check_for_ineligibility(first_team_id: str, *team_ids: str) -> list[CheckedMatch]:
-    """Check lower-team matches for Sec. 34 Nr. 2 violations.
+    """Checks lower-team matches for Sec. 34 Nr. 2 violations.
 
     Args:
         first_team_id: BFV team ID of highest-ranked team.
@@ -225,7 +226,7 @@ def check_for_ineligibility(first_team_id: str, *team_ids: str) -> list[CheckedM
         for m in own_matches:
             at_risk: dict[PlayerKey, HigherTeamAppearance] = {}
             for higher_ix in range(1, team_ix):
-                higher_appearances = _appearances_in_window(
+                higher_appearances = appearances_in_window(
                     matches_by_team[higher_ix],
                     higher_ix,
                     levels[higher_ix - 1],
@@ -241,14 +242,14 @@ def check_for_ineligibility(first_team_id: str, *team_ids: str) -> list[CheckedM
                         at_risk[key] = appearance
 
             lower_area = staffel_infos[team_ix - 1].competitionArea
-            checked.append(_check_match(m, at_risk, lower_level, lower_area))
+            checked.append(check_match(m, at_risk, lower_level, lower_area))
             prev_kickoff = m.kickoff
 
     return checked
 
 
 def main(club_id: str, pattern: Annotated[str | None, doctyper.Argument()] = None) -> None:
-    """Check for ineligible players according to Sec. 34 Nr. 2.
+    """Checks for ineligible players according to Sec. 34 Nr. 2.
 
     Args:
         club_id: BFV club ID.

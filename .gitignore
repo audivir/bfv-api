@@ -1,13 +1,45 @@
+# python-generated files
 __pycache__/
-*.pyc
-*.egg-info/
+*.py[cod]
+*$py.class
+*.pyd
+*.so
+*.egg-info
 build/
 dist/
-.coverage
-.mypy_cache/
+wheels/
+
+# build artifacts
 .pdm-build/
-.ruff_cache/
-.pytest_cache/
-uv.lock
 .pdm-python
+
+# virtual environments
 .venv/
+venv/
+
+# test artifacts
+.benchmarks/
+.coverage*
+.pytest_cache/
+
+# lint artifacts
+.mypy_cache/
+.ruff_cache/
+
+# uv
+uv.lock
+.python-version
+
+# editors
+.idea/
+.vscode/
+
+# os
+.DS_Store
+Thumbs.db
+
+# environment variables
+.env
+env/
+
+# custom exclusions

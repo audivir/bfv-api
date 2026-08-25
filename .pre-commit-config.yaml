@@ -1,25 +1,17 @@
 # To use:
 #
-#     pre-commit run -a
+#     prek run -a
 #
 # Or:
 #
-#     pre-commit install  # (runs every time you commit in git)
+#     prek install  # (runs every time you commit in git)
 #
 # To update this file:
 #
-#     pre-commit autoupdate
+#     prek update
 #
-# See https://github.com/pre-commit/pre-commit
-ci:
-  autoupdate_commit_msg: "chore: update pre-commit hooks"
-  autofix_commit_msg: "style: pre-commit fixes"
+# See https://github.com/j178/prek
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.9
-    hooks:
-      - id: ruff-format
-      - id: ruff-check
   # standard hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -52,7 +44,7 @@ repos:
     rev: v1.5.6
     hooks:
       - id: remove-tabs
-        exclude: ^(docs)
+        exclude: ^(docs)|\.go$
   # CMake formatting
   - repo: https://github.com/cheshirekow/cmake-format-precommit
     rev: v0.6.13
@@ -61,13 +53,43 @@ repos:
         additional_dependencies: [pyyaml]
         types: [file]
         files: (\.cmake|CMakeLists.txt)(.in)?$
-  # Yaml formatting
+  # yaml formatting
   - repo: https://github.com/google/yamlfmt
     rev: v0.21.0
     hooks:
       - id: yamlfmt
-# Suggested hook if you add a .clang-format file
-# - repo: https://github.com/pre-commit/mirrors-clang-format
-#  rev: v22.1.3
-#  hooks:
-#  - id: clang-format
+        # Suggested hook if you add a .clang-format file
+        # - repo: https://github.com/pre-commit/mirrors-clang-format
+        #  rev: v22.1.3
+        #  hooks:
+        #  - id: clang-format
+  # toml formatting
+  - repo: https://github.com/ComPWA/taplo-pre-commit
+    rev: v0.9.3
+    hooks:
+      - id: taplo-format
+  # markdown formatting
+  - repo: https://github.com/executablebooks/mdformat
+    rev: 1.0.0
+    hooks:
+      - id: mdformat
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1-1
+    hooks:
+      - id: shellcheck
+        files: ^(\.zshrc|\.bashrc|\.env|.*\.sh)$
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.4
+    hooks:
+      - id: ruff-format
+      - id: ruff-check
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: mypy
+        language: system
+        types: [python]
+        require_serial: true
+        pass_filenames: false
+        args: [bfv_api, tests]

@@ -19,7 +19,7 @@ if __name__ == "__main__":
         matches = BFV.get_competition_for_match_day(comp, match_day).data.matches
         all_matches.extend(matches)
 
-    # Filter for matches with valid results.
+    # filter for matches with valid results.
     simple_matches: list[Match] = []
     for bfv_match in all_matches:
         if not bfv_match.parsed_result:

@@ -1,4 +1,4 @@
-"""Example of using bfv_api to retrieve team standings."""
+"""Checks for ineligible players used in club matches according to BFV terms."""
 
 # ruff: noqa: N815
 from __future__ import annotations
@@ -37,7 +37,7 @@ LEGAL = "yellow", "LEGAL"
 
 
 class RomanNumeral(OrderedEnum):
-    """Container for Roman numerals from zero to nine."""
+    """Stores Roman numerals from zero to nine."""
 
     zero = ""
     one = "I"
@@ -53,7 +53,7 @@ class RomanNumeral(OrderedEnum):
 
 @total_ordering
 class TeamSort(msgspec.Struct):
-    """Coordinates team sorting by competition level and Roman numeral."""
+    """Stores team level and name for Roman-numeral-aware sort ordering."""
 
     level: CompetitionLevel
     name: str
@@ -91,7 +91,7 @@ class TeamSort(msgspec.Struct):
 
 
 class PlayerStatus(msgspec.Struct):
-    """Encapsulates metadata regarding a player's most recent usage."""
+    """Stores metadata about the most recent usage of a player."""
 
     higher_team: int
     match_date: date
@@ -101,7 +101,7 @@ class PlayerStatus(msgspec.Struct):
 
 
 class PlayersMatch(msgspec.Struct):
-    """Encapsulates match details and associated player information."""
+    """Stores match details and associated player information."""
 
     team: int
     matchId: str
@@ -115,12 +115,12 @@ class PlayersMatch(msgspec.Struct):
 
 
 def missing_value(key: str) -> NoReturn:
-    """Raise ValueError for missing value."""
+    """Raises ValueError for a missing value."""
     raise ValueError(f"Missing value for {key}")
 
 
 def get_team_info(match_report: MatchReport, club_id: str) -> MatchTeamInfo:
-    """Retrieve team information for given club ID."""
+    """Retrieves team information for given club ID."""
     match_report_info = match_report.matchReportInfo
     if not match_report_info:
         raise ValueError("No match report info")
@@ -138,7 +138,7 @@ def get_team_info(match_report: MatchReport, club_id: str) -> MatchTeamInfo:
 def get_matches_with_players(
     team_id: str, team_ix: int, sp_print: Callable[..., None] | None = None
 ) -> list[PlayersMatch]:
-    """Retrieve match objects including associated player information."""
+    """Retrieves match objects including associated player information."""
     if not sp_print:
         sp_print = print
 
@@ -198,7 +198,7 @@ def get_matches_with_players(
 
 
 class ViolatingMatch(NamedTuple):
-    """Container for violation data during a team match."""
+    """Stores violation data during a team match."""
 
     team: int
     date: date
@@ -211,7 +211,7 @@ class ViolatingMatch(NamedTuple):
 
 
 class Ineligibility(NamedTuple):
-    """Container for ineligibility data during club matches."""
+    """Stores ineligibility data during club matches."""
 
     n_teams: int
     allowed_violations: int
@@ -219,7 +219,7 @@ class Ineligibility(NamedTuple):
 
 
 def check_for_ineligibility(first_team_id: str, *team_ids: str) -> Ineligibility:  # noqa: C901, PLR0912, PLR0915
-    """Identify ineligible players used in matches.
+    """Identifies ineligible players used in matches.
 
     Args:
         first_team_id: BFV team ID of the first team.
@@ -349,7 +349,7 @@ def check_for_ineligibility(first_team_id: str, *team_ids: str) -> Ineligibility
 
 
 class FoundTeam(NamedTuple):
-    """Encapsulates details of a club team."""
+    """Stores details of a club team."""
 
     level: CompetitionLevel
     name: str
@@ -357,11 +357,11 @@ class FoundTeam(NamedTuple):
 
 
 def find_teams(club_id: str, raw_pattern: str | None) -> tuple[str, list[FoundTeam] | None]:
-    """Find Herren Meisterschaften teams for a club.
+    """Finds Herren Meisterschaften teams for a club.
 
     Args:
         club_id: BFV club ID.
-        raw_pattern: Regex pattern to match team name. If None, use club name.
+        raw_pattern: Regex pattern to match team name. If None, uses the club name.
     """
     club_info = BFV.get_club_info(club_id).data
     club_name = club_info.club.name
@@ -394,7 +394,7 @@ def find_teams(club_id: str, raw_pattern: str | None) -> tuple[str, list[FoundTe
 
 
 def main(club_id: str, pattern: Annotated[str | None, doctyper.Argument()] = None) -> None:  # noqa: C901
-    """Check for ineligible players according to BFV terms.
+    """Checks for ineligible players according to BFV terms.
 
     Args:
         club_id: BFV club ID.

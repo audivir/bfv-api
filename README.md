@@ -1,12 +1,28 @@
-BFV API Python Client
-======================
+# bfv-api
 
-This small package was created to create standings for BFV-supervised leagues
-with an optionated tiebreaker order different from the one used by the BFV and
-and check if a club used ineligible players.
+This package creates standings for BFV-supervised leagues with a tiebreaker order
+different from the one used by the BFV, and checks whether a club used ineligible players.
 
-Examples are found in `example_ineligibility.py` and `example_standings.py`.
+## Prerequisites
 
-Credits
--------
-[Sebastian Siedler](https://github.com/SebastianSiedler/bfv-api-js)
+- Python 3.10 or newer
+
+## Installation
+
+```shell
+pip install https://github.com/audivir/bfv-api
+```
+
+## Usage
+
+Examples are found in `example_standings.py` and `example_ineligibility.py`.
+
+## Acknowledgments
+
+This package follows the API approach of
+[bfv-api-js](https://github.com/SebastianSiedler/bfv-api-js) by Sebastian Siedler.
+See `NOTICE` for license details of the original project.
+
+## License
+
+This project is licensed under the MIT License. See `LICENSE` for details.

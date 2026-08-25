@@ -1,4 +1,4 @@
-"""Test ineligibility module."""
+"""Example of checking for ineligible players using bfv_api."""
 
 from __future__ import annotations
 

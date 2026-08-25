@@ -1,4 +1,4 @@
-"""Generate sports table from list of matches."""
+"""Generates a sports table from a list of matches."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ POINTS_FOR_DRAW = 1
 
 
 class Match(NamedTuple):
-    """Container for match results and fair play statistics."""
+    """Stores match results and fair play statistics."""
 
     home: str
     guest: str
@@ -29,7 +29,7 @@ class Match(NamedTuple):
 
 @dataclass
 class Team:
-    """Encapsulates statistics and metadata for a sports table team."""
+    """Stores statistics and metadata for a sports table team."""
 
     name: str
     games: int = 0
@@ -60,7 +60,7 @@ class Tiebreaker(Enum):
 def sort_group(  # noqa: C901
     teams: list[Team], type_: Tiebreaker, special: list[Tiebreaker] | None = None
 ) -> list[list[Team]]:
-    """Sort teams using specified tiebreaking criteria."""
+    """Sorts teams using specified tiebreaking criteria."""
     if type_ is Tiebreaker.HEAD_TO_HEAD:
         if not special:
             raise ValueError(
@@ -117,7 +117,7 @@ def sort_group(  # noqa: C901
 def tiebreaker_sort(
     teams: list[Team], tiebreakers: deque[Tiebreaker], special: list[Tiebreaker] | None = None
 ) -> list[Team | list[Team]]:
-    """Sort teams using specified tiebreaking criteria.
+    """Sorts teams using specified tiebreaking criteria.
 
     Args:
         teams: Teams to sort.
@@ -146,7 +146,7 @@ def tiebreaker_sort(
 
 
 def create_standings(matches: Iterable[Match]) -> list[Team]:
-    """Generate league standings from a sequence of matches."""
+    """Generates league standings from a sequence of matches."""
     standings: dict[str, Team] = {}
     for match in matches:
         home = standings.setdefault(match.home, Team(match.home))
@@ -181,8 +181,8 @@ def create_standings(matches: Iterable[Match]) -> list[Team]:
     return list(standings.values())
 
 
-def _show_standings(teams: Iterable[Team]) -> None:
-    """Print league standings table to console."""
+def show_standings_table(teams: Iterable[Team]) -> None:
+    """Prints league standings table to console."""
     print("Rank\tTeam\t\t\t\t\tGames\tPoints\tWins\tDraws\tLosses\tGF\tGA\tFP")  # noqa: T201
     for ix, team in enumerate(teams):
         print(  # noqa: T201
@@ -192,8 +192,8 @@ def _show_standings(teams: Iterable[Team]) -> None:
         )
 
 
-def _verify_standings(teams: list[Team | list[Team]]) -> list[Team]:
-    """Validate that standings list contains only Team objects."""
+def verify_standings(teams: list[Team | list[Team]]) -> list[Team]:
+    """Validates that standings list contains only Team objects."""
     if not all(isinstance(team, Team) for team in teams):
         raise ValueError("Table contains non-team objects")
     return teams  # type: ignore[return-value]
@@ -208,7 +208,7 @@ def show_standings(
         Tiebreaker.GOALS_FOR,
     ),
 ) -> None:
-    """Display league standings table.
+    """Displays league standings table.
 
     Args:
         matches: Sequence of matches to process.
@@ -220,19 +220,5 @@ def show_standings(
     sorted_teams = tiebreaker_sort(
         teams, deque(tiebreakers), list(special) if special is not None else None
     )
-    final_standings = _verify_standings(sorted_teams)
-    _show_standings(final_standings)
-
-
-def test_show_standings() -> None:
-    """Verify that standings are correctly displayed for a set of match results."""
-    inputs = [
-        Match("A", "B", 1, 1, 1, 1),
-        Match("B", "C", 1, 1, 1, 1),
-        Match("C", "A", 1, 0, 1, 1),
-        Match("A", "D", 2, 1, 1, 1),
-        Match("D", "B", 1, 1, 1, 1),
-        Match("C", "D", 0, 1, 1, 1),
-    ]
-
-    show_standings(inputs)
+    final_standings = verify_standings(sorted_teams)
+    show_standings_table(final_standings)
