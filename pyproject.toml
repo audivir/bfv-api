@@ -20,7 +20,7 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
   "Typing :: Typed",
 ]
-dependencies = ["doctyper", "ordered_enum", "rich", "mxhttp", "yaspin"]
+dependencies = ["doctyper", "ordered_enum", "rich", "mxhttp>=1.7.0", "yaspin"]
 
 [project.optional-dependencies]
 

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Generic, Literal, NamedTuple, Protocol, TypeAlias, TypeVar
 
 import msgspec
-from mxhttp import SyncConsumer, get
+from mxhttp import SyncConsumer, base_url, get
 from ordered_enum import OrderedEnum
 from typing_extensions import ParamSpec, Self
 
@@ -501,6 +501,7 @@ def parse_result(match: Match | MatchReport, _parse: bool = True) -> tuple[int, 
         raise ValueError(f"Invalid result string for {home} vs {guest}: {result}") from e
 
 
+@base_url("https://widget-prod.bfv.de")
 class BFVConsumer(SyncConsumer):
     """Wraps a synchronous HTTP consumer to expose BFV API endpoints."""
 
@@ -553,4 +554,4 @@ class BFVConsumer(SyncConsumer):
         """Retrieves report for specified match."""
 
 
-BFV = BFVConsumer(base_url="https://widget-prod.bfv.de")
+BFV = BFVConsumer()
