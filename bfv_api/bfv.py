@@ -269,8 +269,8 @@ class Squad(msgspec.Struct):
 class Venue(msgspec.Struct):
     """Stores venue data from BFV API."""
 
-    type: Literal[0, 1, 3]
-    typeName: Literal["Rasenplatz", "Kunstrasenplatz"] | None
+    type: Literal[0, 1, 3, 9]
+    typeName: Literal["Rasenplatz", "Kunstrasenplatz", "Hybridrasenplatz"] | None
     name: str | None
     street: str | None
     zipCode: str | None
